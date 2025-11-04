@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FAFAFA">
+
+    <!-- Barra de título -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="#005eb8">
+
+        <ImageView
+            android:id="@+id/logoSEBRAE"
+            android:layout_width="65dp"
+            android:layout_height="65dp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:src="@drawable/ic_sebrae_branco"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/txtTitulo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Lista de Locais"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/logoSEBRAE"
+            android:layout_marginStart="12dp" />
+    </RelativeLayout>
+
+    <!-- SearchView -->
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/searchViewLocais"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:queryHint="Pesquisar codigo local"
+        android:iconifiedByDefault="false"
+        android:layout_margin="8dp" />
+
+    <ListView
+        android:id="@+id/listViewLocais"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:divider="#CCCCCC"
+        android:dividerHeight="1dp"/>
+</LinearLayout>

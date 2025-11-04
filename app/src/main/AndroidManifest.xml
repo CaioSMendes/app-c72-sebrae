@@ -41,6 +41,10 @@
             android:exported="true" />
         <activity android:name=".activity.InventarioActivity" />
 
+        <activity android:name=".activity.LocalActivity"/>
+        <activity android:name=".activity.ListaLocaisActivity"/>
+        <activity android:name=".activity.DetalheLocalActivity"/>
+
         <activity android:name=".activity.PatrimonioActivity"/>
         <activity android:name=".activity.ListaPatrimoniosActivity"/>
         <activity android:name=".activity.DetalhePatrimonioActivity" />

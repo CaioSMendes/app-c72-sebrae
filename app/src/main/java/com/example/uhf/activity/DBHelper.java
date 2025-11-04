@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 import com.example.uhf.model.Patrimonio; // Import necessário
 import com.example.uhf.model.Usuario;    // Import necessário
+import com.example.uhf.model.Local;    // Import necessário
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,11 @@ public class DBHelper extends SQLiteOpenHelper {
     private static final String COL_DESCRICAO = "descricao";
     private static final String COL_CODIGO_BARRA = "codigo_barra";
 
+    private static final String TABLE_LOCAL = "locais"; // nova tabela
+    private static final String COL_LOCAL_NOME = "local_nome";
+    private static final String COL_CODIGO_FILIAL = "codigo_filial";
+    private static final String COL_CODIGO_LOCAL = "codigo_local";
+
     public DBHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -44,12 +50,20 @@ public class DBHelper extends SQLiteOpenHelper {
                 COL_DESCRICAO + " TEXT, " +
                 COL_CODIGO_BARRA + " TEXT UNIQUE)";
         db.execSQL(createPatrimonios);
+
+        String createLocais = "CREATE TABLE " + TABLE_LOCAL + " (" +
+                COL_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                COL_LOCAL_NOME + " TEXT, " +
+                COL_CODIGO_FILIAL + " TEXT, " +
+                COL_CODIGO_LOCAL + " TEXT UNIQUE)";
+        db.execSQL(createLocais);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIO);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_PATRIMONIO);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_LOCAL);
         onCreate(db);
     }
 
@@ -181,5 +195,84 @@ public class DBHelper extends SQLiteOpenHelper {
         cursor.close();
         db.close();
         return p;
+    }
+
+    // MÉTODOS PARA LOCAIS
+    public long salvarLocal(Local local) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COL_LOCAL_NOME, local.getLocalNome());
+        values.put(COL_CODIGO_FILIAL, local.getCodigoFilial());
+        values.put(COL_CODIGO_LOCAL, local.getCodigoLocal());
+        long id = db.insert(TABLE_LOCAL, null, values);
+        db.close();
+        return id;
+    }
+
+    public boolean atualizarLocal(int id, Local local) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COL_LOCAL_NOME, local.getLocalNome());
+        values.put(COL_CODIGO_FILIAL, local.getCodigoFilial());
+        values.put(COL_CODIGO_LOCAL, local.getCodigoLocal());
+        int linhas = db.update(TABLE_LOCAL, values, COL_ID + "=?", new String[]{String.valueOf(id)});
+        db.close();
+        return linhas > 0;
+    }
+
+    public boolean excluirLocal(int id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int linhas = db.delete(TABLE_LOCAL, COL_ID + "=?", new String[]{String.valueOf(id)});
+        db.close();
+        return linhas > 0;
+    }
+
+    // Verifica se um local já existe pelo código
+    public boolean existeCodigoLocal(String codigoLocal) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT " + COL_CODIGO_LOCAL + " FROM " + TABLE_LOCAL + " WHERE " + COL_CODIGO_LOCAL + " = ?",
+                new String[]{codigoLocal});
+        boolean existe = cursor.moveToFirst();
+        cursor.close();
+        db.close();
+        return existe;
+    }
+
+    public List<Local> listarLocais() {
+        List<Local> lista = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_LOCAL + " ORDER BY id DESC", null);
+        if (cursor.moveToFirst()) {
+            do {
+                Local l = new Local(
+                        cursor.getInt(cursor.getColumnIndexOrThrow(COL_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COL_LOCAL_NOME)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COL_CODIGO_FILIAL)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(COL_CODIGO_LOCAL))
+                );
+                lista.add(l);
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return lista;
+    }
+
+    public Local buscarLocalPorId(int id) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(TABLE_LOCAL, null, COL_ID + "=?", new String[]{String.valueOf(id)},
+                null, null, null);
+        Local l = null;
+        if (cursor.moveToFirst()) {
+            l = new Local(
+                    cursor.getInt(cursor.getColumnIndexOrThrow(COL_ID)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_LOCAL_NOME)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_CODIGO_FILIAL)),
+                    cursor.getString(cursor.getColumnIndexOrThrow(COL_CODIGO_LOCAL))
+            );
+        }
+        cursor.close();
+        db.close();
+        return l;
     }
 }
