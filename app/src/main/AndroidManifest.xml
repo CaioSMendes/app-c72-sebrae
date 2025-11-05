@@ -40,6 +40,8 @@
             android:configChanges="orientation|screenSize"
             android:exported="true" />
         <activity android:name=".activity.InventarioActivity" />
+        <activity android:name=".activity.ConsultaTagActivity" />
+
 
         <activity android:name=".activity.LocalActivity"/>
         <activity android:name=".activity.ListaLocaisActivity"/>
