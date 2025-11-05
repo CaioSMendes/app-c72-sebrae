@@ -61,8 +61,8 @@ public class PatrimonioAdapter extends BaseAdapter {
         txtCodigo.setText(p.getCodigoBarra());
 
         String descricao = p.getDescricao();
-        if (descricao.length() > 15) {
-            descricao = descricao.substring(0, 15) + "...";
+        if (descricao.length() > 25) {
+            descricao = descricao.substring(0, 25) + "...";
         }
         txtDescricao.setText(descricao);
 

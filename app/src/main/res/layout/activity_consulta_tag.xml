@@ -1,20 +1,210 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:background="#FAFAFA">
+    android:background="#FAFAFA"
+    android:padding="8dp">
 
+    <!-- Barra de título -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:background="#005eb8">
+
+        <ImageView
+            android:id="@+id/logoSEBRAE"
+            android:layout_width="65dp"
+            android:layout_height="65dp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:src="@drawable/ic_sebrae_branco"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/txtTitulo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Informações Inventário"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/logoSEBRAE"
+            android:layout_marginStart="12dp" />
+    </RelativeLayout>
+
+    <!-- Texto informativo -->
     <TextView
         android:id="@+id/txtInfoTopo"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Informações do inventário"
+        android:text="Leitura de tags RFID"
         android:textStyle="bold"
         android:textColor="#005eb8"
         android:textSize="18sp"
-        android:paddingBottom="12dp"/>
+        android:padding="12dp"
+        android:gravity="center" />
 
-    <!-- Aqui você pode colocar seu RecyclerView ou conteúdo da próxima tela -->
+    <!-- Botões lado a lado -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="12dp"
+        android:layout_marginTop="8dp">
+
+        <!-- Botão Ler Tags -->
+        <LinearLayout
+            android:id="@+id/btnLerTags"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#005eb8"
+            android:paddingVertical="12dp"
+            android:layout_marginEnd="4dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ler_rfid"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/txtTituloBotao"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ler Tags"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Botão Limpar Tags -->
+        <LinearLayout
+            android:id="@+id/btnLimparTags"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#005eb8"
+            android:paddingVertical="12dp"
+            android:layout_marginEnd="4dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_clean"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Limpar Tags"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Botão Distância -->
+        <LinearLayout
+            android:id="@+id/btnDistancia"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#009688"
+            android:paddingVertical="12dp"
+            android:layout_marginStart="4dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/distance"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Distância"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- TextView de contagem de tags -->
+    <TextView
+        android:id="@+id/tvTagCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tags lidas: 0"
+        android:textSize="16sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp" />
+
+    <!-- NOVO: TextView para mensagens de status -->
+    <TextView
+        android:id="@+id/txtResultado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Aguardando leitura..."
+        android:textSize="16sp"
+        android:textColor="#333333"
+        android:padding="8dp"
+        android:background="#EEEEEE"
+        android:layout_marginBottom="8dp" />
+
+    <!-- RadioGroup modo de leitura -->
+    <RadioGroup
+        android:id="@+id/rgMode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <RadioButton
+            android:id="@+id/rbLoop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Auto" />
+
+        <RadioButton
+            android:id="@+id/rbSingle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Single"
+            android:layout_marginStart="24dp" />
+    </RadioGroup>
+
+    <!-- Lista de tags lidas -->
+    <ListView
+        android:id="@+id/listViewTags"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@android:color/darker_gray"
+        android:dividerHeight="1dp"
+        android:padding="8dp"
+        android:background="@android:color/white" />
+
 </LinearLayout>

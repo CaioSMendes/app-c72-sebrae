@@ -1,9 +1,14 @@
 package com.example.uhf.activity;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -20,6 +25,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import com.example.uhf.model.Usuario;
 
 import java.io.InputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class UsuarioActivity extends Activity {
 
@@ -83,44 +90,102 @@ public class UsuarioActivity extends Activity {
         });
     }
 
-    // 🔁 Resultado da seleção de arquivo Excel
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == PICK_FILE_REQUEST && resultCode == RESULT_OK && data != null) {
             Uri fileUri = data.getData();
-            try {
-                InputStream inputStream = getContentResolver().openInputStream(fileUri);
-                Workbook workbook = new XSSFWorkbook(inputStream);
-                Sheet sheet = workbook.getSheetAt(0);
+            if (fileUri == null) return;
 
-                int count = 0, duplicados = 0;
+            txtDadosSalvos.setText("📂 Lendo arquivo... aguarde...");
+            Toast.makeText(this, "Importando usuários, aguarde...", Toast.LENGTH_SHORT).show();
 
-                for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                    Row row = sheet.getRow(i);
-                    if (row != null) {
-                        String nome = row.getCell(0).getStringCellValue();
-                        String matricula = row.getCell(1).getStringCellValue();
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Handler handler = new Handler(Looper.getMainLooper());
 
-                        if (dbHelper.existeMatricula(matricula)) {
-                            duplicados++;
-                        } else {
-                            dbHelper.salvarUsuario(new Usuario(nome, matricula));
-                            count++;
+            executor.execute(() -> {
+                int countInseridos = 0;
+                int countDuplicados = 0;
+                int countErros = 0;
+
+                SQLiteDatabase db = dbHelper.getWritableDatabase();
+                db.beginTransaction(); // 🚀 Acelera o processo
+
+                try (InputStream inputStream = getContentResolver().openInputStream(fileUri);
+                     Workbook workbook = new XSSFWorkbook(inputStream)) {
+
+                    Sheet sheet = workbook.getSheetAt(0);
+                    int totalLinhas = sheet.getLastRowNum();
+
+                    for (int i = 1; i <= totalLinhas; i++) { // pula cabeçalho (linha 0)
+                        try {
+                            Row row = sheet.getRow(i);
+                            if (row == null) continue;
+
+                            // Lê colunas — supondo ordem: Nome | Matrícula
+                            String nome = row.getCell(0).getStringCellValue().trim();
+                            String matricula = row.getCell(1).getStringCellValue().trim();
+
+                            if (nome.isEmpty() || matricula.isEmpty()) continue;
+
+                            if (dbHelper.existeMatricula(matricula)) {
+                                countDuplicados++;
+                            } else {
+                                ContentValues values = new ContentValues();
+                                values.put("nome", nome);
+                                values.put("matricula", matricula);
+                                db.insert("usuarios", null, values);
+                                countInseridos++;
+                            }
+
+                            // Atualiza status a cada 100 linhas
+                            if (i % 100 == 0 || i == totalLinhas) {
+                                final int finalI = i;
+                                final int finalInseridos = countInseridos;
+                                final int finalDuplicados = countDuplicados;
+                                final int finalErros = countErros;
+
+                                handler.post(() -> txtDadosSalvos.setText(
+                                        "Processadas " + finalI + " de " + totalLinhas +
+                                                "\nSalvos: " + finalInseridos +
+                                                "\nDuplicados: " + finalDuplicados +
+                                                "\nErros: " + finalErros
+                                ));
+                            }
+
+                        } catch (Exception linhaErro) {
+                            countErros++;
+                            Log.e("IMPORT_USUARIOS", "Erro na linha " + i + ": " + linhaErro.getMessage());
                         }
                     }
+
+                    db.setTransactionSuccessful();
+
+                    final int totalInseridos = countInseridos;
+                    final int totalDuplicados = countDuplicados;
+                    final int totalErros = countErros;
+
+                    handler.post(() -> {
+                        txtDadosSalvos.setText("✅ Importação concluída!\n" +
+                                "Inseridos: " + totalInseridos +
+                                "\nDuplicados: " + totalDuplicados +
+                                "\nErros ignorados: " + totalErros);
+                        Toast.makeText(this, "Usuários importados com sucesso!", Toast.LENGTH_LONG).show();
+                    });
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    handler.post(() -> {
+                        txtDadosSalvos.setText("❌ Erro geral: " + e.getMessage());
+                        Toast.makeText(this, "Erro ao importar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    });
+                } finally {
+                    db.endTransaction();
+                    db.close();
+                    executor.shutdown();
                 }
-
-                workbook.close();
-                txtDadosSalvos.setText("Importação: " + count + " inseridos, " + duplicados + " ignorados (duplicados).");
-                Toast.makeText(this, "Importação concluída!", Toast.LENGTH_SHORT).show();
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                txtDadosSalvos.setText("Erro ao importar: " + e.getMessage());
-                Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            }
+            });
         }
     }
 }
