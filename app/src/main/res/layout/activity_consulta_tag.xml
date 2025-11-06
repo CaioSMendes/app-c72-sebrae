@@ -1,56 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#FAFAFA"
-    android:padding="8dp">
+    android:background="#FAFAFA">
 
-    <!-- Barra de título -->
+    <!-- 🔵 Barra de título: agora ocupa a tela toda -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
+        android:background="#005eb8"
         android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:background="#005eb8">
+        android:paddingEnd="16dp">
 
         <ImageView
             android:id="@+id/logoSEBRAE"
             android:layout_width="65dp"
             android:layout_height="65dp"
-            android:layout_centerVertical="true"
             android:layout_alignParentStart="true"
-            android:src="@drawable/ic_sebrae_branco"
+            android:layout_centerVertical="true"
             android:adjustViewBounds="true"
-            android:scaleType="fitCenter" />
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_sebrae_branco" />
 
         <TextView
             android:id="@+id/txtTitulo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="12dp"
+            android:layout_toEndOf="@id/logoSEBRAE"
             android:text="Informações Inventário"
             android:textColor="@android:color/white"
             android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_centerVertical="true"
-            android:layout_toEndOf="@id/logoSEBRAE"
-            android:layout_marginStart="12dp" />
+            android:textStyle="bold" />
     </RelativeLayout>
 
-    <!-- Texto informativo -->
     <TextView
         android:id="@+id/txtInfoTopo"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Leitura de tags RFID"
+        android:text="Informacoes"
         android:textStyle="bold"
         android:textColor="#005eb8"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:padding="12dp"
         android:gravity="center" />
 
-    <!-- Botões lado a lado -->
+    <TextView
+        android:id="@+id/txtInfoUser"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Usuario"
+        android:textStyle="bold"
+        android:textColor="#005eb8"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:gravity="center" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -59,7 +66,6 @@
         android:layout_marginBottom="12dp"
         android:layout_marginTop="8dp">
 
-        <!-- Botão Ler Tags -->
         <LinearLayout
             android:id="@+id/btnLerTags"
             android:layout_width="0dp"
@@ -90,7 +96,6 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Botão Limpar Tags -->
         <LinearLayout
             android:id="@+id/btnLimparTags"
             android:layout_width="0dp"
@@ -120,7 +125,6 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Botão Distância -->
         <LinearLayout
             android:id="@+id/btnDistancia"
             android:layout_width="0dp"
@@ -151,7 +155,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- TextView de contagem de tags -->
     <TextView
         android:id="@+id/tvTagCount"
         android:layout_width="match_parent"
@@ -161,7 +164,6 @@
         android:textColor="#333333"
         android:layout_marginBottom="8dp" />
 
-    <!-- NOVO: TextView para mensagens de status -->
     <TextView
         android:id="@+id/txtResultado"
         android:layout_width="match_parent"
@@ -173,7 +175,6 @@
         android:background="#EEEEEE"
         android:layout_marginBottom="8dp" />
 
-    <!-- RadioGroup modo de leitura -->
     <RadioGroup
         android:id="@+id/rgMode"
         android:layout_width="wrap_content"
@@ -196,7 +197,7 @@
             android:layout_marginStart="24dp" />
     </RadioGroup>
 
-    <!-- Lista de tags lidas -->
+    <!-- ✅ LISTA FUNCIONANDO -->
     <ListView
         android:id="@+id/listViewTags"
         android:layout_width="match_parent"

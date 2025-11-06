@@ -121,6 +121,37 @@ public class DBHelper extends SQLiteOpenHelper {
         db.close();
         return lista;
     }
+    public Local buscarLocalPorCodigo(String codigoLocal) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query("locais", null, "codigo_local = ?", new String[]{codigoLocal}, null, null, null);
+        Local local = null;
+        if(cursor.moveToFirst()) {
+            local = new Local(
+                    cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("local_nome")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("codigo_filial")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("codigo_local"))
+            );
+        }
+        cursor.close();
+        db.close();
+        return local;
+    }
+
+    public Usuario buscarUsuarioPorMatricula(String matricula) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query("usuarios", null, "matricula = ?", new String[]{matricula}, null, null, null);
+        Usuario user = null;
+        if(cursor.moveToFirst()) {
+            user = new Usuario(
+                    cursor.getString(cursor.getColumnIndexOrThrow("nome")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("matricula"))
+            );
+        }
+        cursor.close();
+        db.close();
+        return user;
+    }
 
     // PATRIMÔNIOS
     public boolean inserirPatrimonio(String patrimonio, String descricao, String codigoBarra) {
@@ -158,6 +189,23 @@ public class DBHelper extends SQLiteOpenHelper {
         int linhas = db.delete(TABLE_PATRIMONIO, COL_ID + "=?", new String[]{String.valueOf(id)});
         db.close();
         return linhas > 0;
+    }
+    public String getDescricaoPorTag(String codigoPatrimonio) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String descricao = null;
+
+        Cursor c = db.rawQuery(
+                "SELECT " + COL_DESCRICAO + " FROM " + TABLE_PATRIMONIO +
+                        " WHERE " + COL_CODIGO_BARRA + " = ?",
+                new String[]{codigoPatrimonio}
+        );
+
+        if (c.moveToFirst()) {
+            descricao = c.getString(0);
+        }
+
+        c.close();
+        return descricao;
     }
 
     public List<Patrimonio> listarPatrimonios() {
