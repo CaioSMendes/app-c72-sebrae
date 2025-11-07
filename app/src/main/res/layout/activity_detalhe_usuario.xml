@@ -32,7 +32,7 @@
             android:id="@+id/txtTitulo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Detalhe do Usuário"
+            android:text="Detalhe do Responsável"
             android:textColor="@android:color/white"
             android:textSize="20sp"
             android:textStyle="bold"
@@ -112,7 +112,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Editar\nUsuário"
+                    android:text="Editar\nResponsável"
                     android:textColor="@android:color/white"
                     android:textSize="14sp"
                     android:gravity="center"
@@ -145,7 +145,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:gravity="center"
-                    android:text="Excluir\nUsuário"
+                    android:text="Excluir\nResponsável"
                     android:textColor="@android:color/white"
                     android:textSize="14sp" />
             </LinearLayout>

@@ -1,7 +1,9 @@
 package com.example.uhf.activity;
 
+import android.content.Intent;
 import android.media.ToneGenerator;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -21,6 +23,8 @@ import com.example.uhf.model.Usuario;
 import com.rscja.deviceapi.RFIDWithUHFUART;
 import com.rscja.deviceapi.entity.UHFTAGInfo;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,14 +47,22 @@ public class ConsultaTagActivity extends AppCompatActivity {
 
     private TextView tvTagCount;
     private ListView listViewTags;
-    private LinearLayout btnLerTags, btnLimparTags, btnDistancia;
+    private LinearLayout btnLerTags, btnLimparTags, btnDistancia, btnResumo, btnConcluir;
     private TextView txtBotao;
     private TextView txtInfoTopo, txtInfoUser;
 
     private RadioButton rbLoop, rbSingle;
-    private boolean modoSingle = false; // false = AUTO, true = SINGLE
+    private boolean modoSingle = false;
 
     private DBHelper dbHelper;
+
+    // ✅ Salvamos aqui para enviar ao resumo
+    private String codigoFilial;
+    private String codigoLocal;
+    private String chapaFuncionario;
+    private Local localBanco;
+    private Usuario userBanco;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,17 +71,24 @@ public class ConsultaTagActivity extends AppCompatActivity {
 
         dbHelper = new DBHelper(this);
 
-        // Dados passados da Activity anterior
-        String codigoFilial = getIntent().getStringExtra("codigoFilial");
-        String codigoLocal = getIntent().getStringExtra("codigoLocal");
-        String chapaFuncionario = getIntent().getStringExtra("chapaFuncionario");
+        // ✅ Dados da Intent
+        codigoFilial = getIntent().getStringExtra("codigoFilial");
+        codigoLocal = getIntent().getStringExtra("codigoLocal");
+        chapaFuncionario = getIntent().getStringExtra("chapaFuncionario");
 
-        // UI
+        // ✅ Carregar dados do banco
+        localBanco = dbHelper.buscarLocalPorCodigo(codigoLocal);
+        userBanco = dbHelper.buscarUsuarioPorMatricula(chapaFuncionario);
+
+        // ✅ Referências UI
         tvTagCount = findViewById(R.id.tvTagCount);
         listViewTags = findViewById(R.id.listViewTags);
         btnLerTags = findViewById(R.id.btnLerTags);
         btnLimparTags = findViewById(R.id.btnLimparTags);
         btnDistancia = findViewById(R.id.btnDistancia);
+        btnResumo = findViewById(R.id.btnResumo);
+        btnConcluir = findViewById(R.id.btnConcluir);
+
         txtBotao = btnLerTags.findViewById(R.id.txtTituloBotao);
         txtInfoTopo = findViewById(R.id.txtInfoTopo);
         txtInfoUser = findViewById(R.id.txtInfoUser);
@@ -83,7 +102,7 @@ public class ConsultaTagActivity extends AppCompatActivity {
         adapter = new SimpleTagAdapter(this, listaTags, db);
         listViewTags.setAdapter(adapter);
 
-        // Configura modos Auto / Single
+        // ✅ Configura modos
         rbLoop.setOnCheckedChangeListener((buttonView, checked) -> {
             if (checked) modoSingle = false;
         });
@@ -92,23 +111,18 @@ public class ConsultaTagActivity extends AppCompatActivity {
             if (checked) modoSingle = true;
         });
 
-        // Botão limpar lista
+        // ✅ Botões
+        btnResumo.setOnClickListener(v -> abrirResumo());
+        btnConcluir.setOnClickListener(v -> gerarArquivoTXT());
         btnLimparTags.setOnClickListener(v -> limparTags());
-
-        // Botão Distância (Curta / Média / Longa)
         btnDistancia.setOnClickListener(v -> abrirSelecionadorDeDistancia());
 
-        // Exibe informações carregadas
-        txtInfoUser.setText(codigoFilial + "|" + codigoLocal + "|" + chapaFuncionario);
+        txtInfoUser.setText(codigoFilial + " | " + codigoLocal + " | " + chapaFuncionario);
 
-        Local localBanco = dbHelper.buscarLocalPorCodigo(codigoLocal);
-        Usuario userBanco = dbHelper.buscarUsuarioPorMatricula(chapaFuncionario);
-
-        if (localBanco != null && userBanco != null) {
-            txtInfoTopo.setText(localBanco.getLocalNome() + "|" + userBanco.getNome());
-        } else {
-            txtInfoTopo.setText("Nenhum dado encontrado no banco para esses códigos.");
-        }
+        if (localBanco != null && userBanco != null)
+            txtInfoTopo.setText(localBanco.getLocalNome() + " | " + userBanco.getNome());
+        else
+            txtInfoTopo.setText("Dados não encontrados.");
 
         inicializarLeitor();
 
@@ -118,36 +132,39 @@ public class ConsultaTagActivity extends AppCompatActivity {
         });
     }
 
+
+    // ✅ Inicializar leitor
     private void inicializarLeitor() {
         try {
             mReader = RFIDWithUHFUART.getInstance();
+
             if (mReader != null && mReader.init(this)) {
 
-                Toast.makeText(this, "Leitor UHF conectado!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Leitor conectado!", Toast.LENGTH_SHORT).show();
 
-                // ✅ LE POTÊNCIA ATUAL APÓS DELAY
                 new Handler().postDelayed(() -> {
                     try {
                         int power = mReader.getPower();
-                        Log.d("UHF", "Potência atual do leitor (dBm): " + power);
-                        Toast.makeText(this, "Potência atual: " + power + " dBm", Toast.LENGTH_SHORT).show();
+                        Log.d("UHF", "Potência atual: " + power);
                     } catch (Exception ex) {
-                        Log.e("UHF", "Erro ao consultar potência: " + ex.getMessage());
+                        Log.e("UHF", "Erro potência: " + ex.getMessage());
                     }
                 }, 400);
 
             } else {
-                Toast.makeText(this, "Falha ao conectar ao leitor UHF.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Falha ao conectar leitor!", Toast.LENGTH_SHORT).show();
             }
+
         } catch (Exception e) {
-            Log.e(TAG, "Erro ao inicializar leitor", e);
-            Toast.makeText(this, "Erro ao inicializar: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Erro inicializando leitor", e);
         }
     }
 
-    // ✅ GATILHO FÍSICO DO LEITOR (TOGGLE)
+
+    // ✅ Gatilho físico (toggle)
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+
         int triggerKeyCode = 293;
 
         if (event.getKeyCode() == triggerKeyCode) {
@@ -160,7 +177,6 @@ public class ConsultaTagActivity extends AppCompatActivity {
                         handler.postDelayed(this::pararLeitura, 250);
                     }
                 } else {
-                    // ✅ AUTO → TOGGLE
                     if (!isReading) iniciarLeitura();
                     else pararLeitura();
                 }
@@ -172,12 +188,9 @@ public class ConsultaTagActivity extends AppCompatActivity {
         return super.dispatchKeyEvent(event);
     }
 
-    // ✅ INICIAR INVENTÁRIO
+
+    // ✅ Iniciar leitura
     private void iniciarLeitura() {
-        if (mReader == null) {
-            Toast.makeText(this, "Leitor não inicializado!", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
         isReading = true;
         txtBotao.setText("Parar Leitura");
@@ -198,44 +211,47 @@ public class ConsultaTagActivity extends AppCompatActivity {
         leituraRunnable = new Runnable() {
             @Override
             public void run() {
-                if (isReading && mReader != null) {
 
-                    try {
-                        UHFTAGInfo tagInfo = mReader.readTagFromBuffer();
+                if (!isReading) return;
 
-                        if (tagInfo != null) {
+                try {
+                    UHFTAGInfo tagInfo = mReader.readTagFromBuffer();
 
-                            String epc = tagInfo.getEPC();
+                    if (tagInfo != null) {
 
-                            if (!tagsLidas.contains(epc)) {
+                        String epc = tagInfo.getEPC();
 
-                                tagsLidas.add(epc);
+                        if (!tagsLidas.contains(epc)) {
 
-                                String epcCurto = epc.length() > 5 ? epc.substring(0, 5) : epc;
+                            tagsLidas.add(epc);
 
-                                listaTags.add(epcCurto);
-                                toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
+                            // ✅ SOMENTE os 5 primeiros dígitos
+                            String epcCurto = epc.length() > 5 ? epc.substring(0, 5) : epc;
 
-                                runOnUiThread(() -> {
-                                    adapter.notifyDataSetChanged();
-                                    tvTagCount.setText("Tags lidas: " + listaTags.size());
-                                });
-                            }
+                            listaTags.add(epcCurto);
+
+                            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
+
+                            runOnUiThread(() -> {
+                                adapter.notifyDataSetChanged();
+                                tvTagCount.setText("Tags lidas: " + listaTags.size());
+                            });
                         }
-
-                    } catch (Exception e) {
-                        Log.e(TAG, "Erro leitura tag", e);
                     }
 
-                    handler.postDelayed(this, 80);
+                } catch (Exception e) {
+                    Log.e(TAG, "Erro leitura tag", e);
                 }
+
+                handler.postDelayed(this, 80);
             }
         };
 
         handler.post(leituraRunnable);
     }
 
-    // ✅ PARAR INVENTÁRIO
+
+    // ✅ Parar leitura
     private void pararLeitura() {
         isReading = false;
         txtBotao.setText("Ler Tags");
@@ -246,68 +262,135 @@ public class ConsultaTagActivity extends AppCompatActivity {
             try {
                 mReader.stopInventory();
             } catch (Exception e) {
-                Log.e(TAG, "Erro ao parar leitura", e);
+                Log.e(TAG, "Erro parar leitura", e);
             }
         });
     }
 
-    // ✅ BOTÃO LIMPAR TAGS
+
+    // ✅ Limpar tags
     private void limparTags() {
         if (isReading) pararLeitura();
 
         tagsLidas.clear();
         listaTags.clear();
         adapter.notifyDataSetChanged();
-
         tvTagCount.setText("Tags lidas: 0");
-        Toast.makeText(this, "Lista de tags limpa!", Toast.LENGTH_SHORT).show();
+
+        Toast.makeText(this, "Lista limpa!", Toast.LENGTH_SHORT).show();
     }
 
-    // ✅ BOTÃO DISTÂNCIA
+
+    // ✅ Ajustar distância
     private void abrirSelecionadorDeDistancia() {
 
-        String[] opcoes = {
-                "Curta (10 dBm)",
-                "Média (20 dBm)",
-                "Longa (30 dBm)"
-        };
+        String[] opcoes = {"Curta (10 dBm)", "Média (20 dBm)", "Longa (30 dBm)"};
 
         new android.app.AlertDialog.Builder(this)
-                .setTitle("Ajustar Distância de Leitura")
+                .setTitle("Ajustar Distância")
                 .setItems(opcoes, (dialog, which) -> {
 
-                    int potenciaSelecionada = 20;
-
-                    switch (which) {
-                        case 0: potenciaSelecionada = 10; break;
-                        case 1: potenciaSelecionada = 20; break;
-                        case 2: potenciaSelecionada = 30; break;
-                    }
+                    int power = which == 0 ? 10 : which == 1 ? 20 : 30;
 
                     try {
-                        boolean ok = mReader.setPower(potenciaSelecionada);
-
-                        if (ok) {
-                            Toast.makeText(this,
-                                    "Potência ajustada para " + potenciaSelecionada + " dBm",
-                                    Toast.LENGTH_SHORT).show();
-
-                            Log.d("UHF", "Potência ajustada para: " + potenciaSelecionada + " dBm");
-
-                        } else {
-                            Toast.makeText(this,
-                                    "Falha ao ajustar potência.",
-                                    Toast.LENGTH_SHORT).show();
+                        if (mReader.setPower(power)) {
+                            Toast.makeText(this, "Potência ajustada: " + power, Toast.LENGTH_SHORT).show();
                         }
-
                     } catch (Exception e) {
-                        Toast.makeText(this,
-                                "Erro ao ajustar potência: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
-
                 })
                 .show();
+    }
+
+
+    private void finalizarInventario() {
+        Toast.makeText(this, "Inventário concluído!", Toast.LENGTH_SHORT).show();
+    }
+
+
+    // ✅ Enviar dados para o ResumoActivity
+    private void abrirResumo() {
+
+        if (listaTags.isEmpty()) {
+            Toast.makeText(this, "Nenhuma tag lida!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent intent = new Intent(this, ResumoActivity.class);
+
+        intent.putStringArrayListExtra("tags", new ArrayList<>(listaTags));
+
+        intent.putExtra("codigoFilial", codigoFilial);
+        intent.putExtra("codigoLocal", codigoLocal);
+        intent.putExtra("chapaFuncionario", chapaFuncionario);
+        intent.putExtra("nomeUsuario", userBanco != null ? userBanco.getNome() : "");
+        intent.putExtra("nomeLocal", localBanco != null ? localBanco.getLocalNome() : "");
+
+        startActivity(intent);
+    }
+
+    // ✅ GERA O TXT EXATAMENTE NO PADRÃO SEBRAE
+    private void gerarArquivoTXT() {
+
+        if (listaTags.isEmpty()) {
+            Toast.makeText(this, "Nenhuma tag lida!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+
+            File pasta = new File(getExternalFilesDir(null), "export");
+            if (!pasta.exists()) pasta.mkdirs();
+
+            File arquivo = new File(pasta, "inventario_final.txt");
+
+            FileOutputStream fos = new FileOutputStream(arquivo);
+
+            for (String tag5 : listaTags) {
+
+                String codigoBarra = "040" + tag5;
+
+                String filialFmt = String.format("%03d",
+                        Integer.parseInt(codigoFilial));
+
+                String localFmt = String.format("%04d",
+                        Integer.parseInt(codigoLocal));
+
+                String matriculaFmt = String.format("%08d",
+                        Integer.parseInt(chapaFuncionario));
+
+                String linha = filialFmt + " "
+                        + localFmt + "  "
+                        + matriculaFmt
+                        + "                      "
+                        + codigoBarra
+                        + "\n";
+
+                fos.write(linha.getBytes());
+            }
+
+            fos.close();
+
+            Toast.makeText(this,
+                    "TXT gerado:\n" + arquivo.getAbsolutePath(),
+                    Toast.LENGTH_LONG).show();
+
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("text/plain");
+
+            Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                    this, getPackageName() + ".provider", arquivo
+            );
+
+            share.putExtra(Intent.EXTRA_STREAM, uri);
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            startActivity(Intent.createChooser(share, "Enviar TXT"));
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
@@ -315,8 +398,6 @@ public class ConsultaTagActivity extends AppCompatActivity {
         super.onDestroy();
         try {
             if (mReader != null) mReader.free();
-        } catch (Exception e) {
-            Log.e(TAG, "Erro ao liberar leitor", e);
-        }
+        } catch (Exception ignored) {}
     }
 }

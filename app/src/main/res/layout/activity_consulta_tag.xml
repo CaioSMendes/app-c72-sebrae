@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="#FAFAFA">
 
-    <!-- 🔵 Barra de título: agora ocupa a tela toda -->
+    <!-- 🔵 Barra de título -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
@@ -17,8 +17,8 @@
             android:id="@+id/logoSEBRAE"
             android:layout_width="65dp"
             android:layout_height="65dp"
-            android:layout_alignParentStart="true"
             android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
             android:adjustViewBounds="true"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_sebrae_branco" />
@@ -27,15 +27,16 @@
             android:id="@+id/txtTitulo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_marginStart="12dp"
-            android:layout_toEndOf="@id/logoSEBRAE"
             android:text="Informações Inventário"
             android:textColor="@android:color/white"
             android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="12dp"
+            android:layout_toEndOf="@id/logoSEBRAE" />
     </RelativeLayout>
 
+    <!-- INFO DO TOPO -->
     <TextView
         android:id="@+id/txtInfoTopo"
         android:layout_width="match_parent"
@@ -58,6 +59,7 @@
         android:padding="12dp"
         android:gravity="center" />
 
+    <!-- BOTÕES SUPERIORES -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -66,12 +68,13 @@
         android:layout_marginBottom="12dp"
         android:layout_marginTop="8dp">
 
+        <!-- LER TAGS -->
         <LinearLayout
             android:id="@+id/btnLerTags"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="horizontal"
+            android:layout_weight="1"
             android:gravity="center"
             android:background="@drawable/btn_rounded"
             android:backgroundTint="#005eb8"
@@ -96,15 +99,16 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- LIMPAR -->
         <LinearLayout
             android:id="@+id/btnLimparTags"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="horizontal"
+            android:layout_weight="1"
             android:gravity="center"
             android:background="@drawable/btn_rounded"
-            android:backgroundTint="#005eb8"
+            android:backgroundTint="#4CAF50"
             android:paddingVertical="12dp"
             android:layout_marginEnd="4dp"
             android:clickable="true"
@@ -125,15 +129,16 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- DISTÂNCIA -->
         <LinearLayout
             android:id="@+id/btnDistancia"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:orientation="horizontal"
+            android:layout_weight="1"
             android:gravity="center"
             android:background="@drawable/btn_rounded"
-            android:backgroundTint="#009688"
+            android:backgroundTint="#546E7A"
             android:paddingVertical="12dp"
             android:layout_marginStart="4dp"
             android:clickable="true"
@@ -153,8 +158,10 @@
                 android:textSize="14sp"
                 android:textStyle="bold" />
         </LinearLayout>
+
     </LinearLayout>
 
+    <!-- CONTADOR -->
     <TextView
         android:id="@+id/tvTagCount"
         android:layout_width="match_parent"
@@ -164,6 +171,7 @@
         android:textColor="#333333"
         android:layout_marginBottom="8dp" />
 
+    <!-- RESULTADO -->
     <TextView
         android:id="@+id/txtResultado"
         android:layout_width="match_parent"
@@ -175,6 +183,7 @@
         android:background="#EEEEEE"
         android:layout_marginBottom="8dp" />
 
+    <!-- RADIO AUTO / SINGLE -->
     <RadioGroup
         android:id="@+id/rgMode"
         android:layout_width="wrap_content"
@@ -197,7 +206,7 @@
             android:layout_marginStart="24dp" />
     </RadioGroup>
 
-    <!-- ✅ LISTA FUNCIONANDO -->
+    <!-- LISTA -->
     <ListView
         android:id="@+id/listViewTags"
         android:layout_width="match_parent"
@@ -207,5 +216,75 @@
         android:dividerHeight="1dp"
         android:padding="8dp"
         android:background="@android:color/white" />
+
+    <!-- BOTÕES RESUMO & CONCLUIR -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center">
+
+        <!-- ✅ BOTÃO RESUMO COM ÍCONE -->
+        <LinearLayout
+            android:id="@+id/btnResumo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#005eb8"
+            android:paddingVertical="12dp"
+            android:layout_marginEnd="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_resumo"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Resumo"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- ✅ BOTÃO CONCLUIR COM ÍCONE -->
+        <LinearLayout
+            android:id="@+id/btnConcluir"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#4CAF50"
+            android:paddingVertical="12dp"
+            android:layout_marginStart="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_concluir"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Concluir"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </LinearLayout>
 
 </LinearLayout>
