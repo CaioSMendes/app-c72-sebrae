@@ -11,6 +11,7 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -19,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.uhf.R;
 import com.example.uhf.model.Local;
 
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -28,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class LocalActivity extends AppCompatActivity {
 
@@ -35,6 +38,7 @@ public class LocalActivity extends AppCompatActivity {
 
     private EditText edtLocal, edtCodLocal, edtCodFilial;
     private ListView listViewLocais;
+    private TextView txtDadosSalvos;
     private DBHelper dbHelper;
     private List<Local> listaLocais;
 
@@ -47,46 +51,13 @@ public class LocalActivity extends AppCompatActivity {
         edtCodLocal = findViewById(R.id.edtCodLoc);
         edtCodFilial = findViewById(R.id.edtCodFilial);
         listViewLocais = findViewById(R.id.listViewLocais);
+        txtDadosSalvos = findViewById(R.id.txtDadosSalvos);
 
         dbHelper = new DBHelper(this);
 
-        // ✅ CÓDIGO LOCAL — somente números e máximo 4 dígitos
-        edtCodLocal.setFilters(new InputFilter[]{
-                new InputFilter.LengthFilter(4)
-        });
-
-        edtCodLocal.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                String limpo = s.toString().replaceAll("[^0-9]", "");
-                if (!limpo.equals(s.toString())) {
-                    edtCodLocal.setText(limpo);
-                    edtCodLocal.setSelection(limpo.length());
-                }
-            }
-        });
-
-        // ✅ CÓDIGO FILIAL — somente números e máximo 3 dígitos
-        edtCodFilial.setFilters(new InputFilter[]{
-                new InputFilter.LengthFilter(3)
-        });
-
-        edtCodFilial.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                String limpo = s.toString().replaceAll("[^0-9]", "");
-                if (!limpo.equals(s.toString())) {
-                    edtCodFilial.setText(limpo);
-                    edtCodFilial.setSelection(limpo.length());
-                }
-            }
-        });
+        // Limitar e aceitar somente números
+        configurarEditTextNumerico(edtCodLocal, 4);
+        configurarEditTextNumerico(edtCodFilial, 3);
 
         carregarLocais();
 
@@ -113,7 +84,21 @@ public class LocalActivity extends AppCompatActivity {
         carregarLocais();
     }
 
-    // ==================== SALVAR ====================
+    private void configurarEditTextNumerico(EditText edt, int maxLength) {
+        edt.setFilters(new InputFilter[]{new InputFilter.LengthFilter(maxLength)});
+        edt.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                String limpo = s.toString().replaceAll("[^0-9]", "");
+                if (!limpo.equals(s.toString())) {
+                    edt.setText(limpo);
+                    edt.setSelection(limpo.length());
+                }
+            }
+        });
+    }
 
     private void salvarLocal() {
         String nome = edtLocal.getText().toString().trim();
@@ -125,14 +110,8 @@ public class LocalActivity extends AppCompatActivity {
             return;
         }
 
-        // ✅ validações dos tamanhos
-        if (codLocal.length() != 4) {
-            Toast.makeText(this, "O Código Local deve ter exatamente 4 dígitos", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (codFilial.length() != 3) {
-            Toast.makeText(this, "O Código Filial deve ter exatamente 3 dígitos", Toast.LENGTH_SHORT).show();
+        if (codLocal.length() != 4 || codFilial.length() != 3) {
+            Toast.makeText(this, "Código Local/Filial com tamanho incorreto", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -155,8 +134,6 @@ public class LocalActivity extends AppCompatActivity {
         }
     }
 
-    // ==================== LISTAR ====================
-
     private void carregarLocais() {
         if (listViewLocais == null) return;
 
@@ -170,7 +147,22 @@ public class LocalActivity extends AppCompatActivity {
                 android.R.layout.simple_list_item_1, nomesLocais));
     }
 
-    // ==================== XLSX ====================
+    private String getCellValue(Cell cell) {
+        if (cell == null) return "";
+        switch (cell.getCellType()) {
+            case STRING: return cell.getStringCellValue().trim();
+            case NUMERIC: return String.valueOf((long) cell.getNumericCellValue());
+            case BOOLEAN: return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                switch (cell.getCachedFormulaResultType()) {
+                    case STRING: return cell.getStringCellValue().trim();
+                    case NUMERIC: return String.valueOf((long) cell.getNumericCellValue());
+                    case BOOLEAN: return String.valueOf(cell.getBooleanCellValue());
+                    default: return "";
+                }
+            default: return "";
+        }
+    }
 
     private void abrirSeletorXLSX() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -182,89 +174,118 @@ public class LocalActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
         if (requestCode == REQUEST_CODE_XLSX && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
-            if (uri != null) {
-                importarXLSX(uri);
-            }
+            if (uri != null) importarXLSX(uri);
         }
     }
 
     private void importarXLSX(Uri uri) {
         Toast.makeText(this, "Iniciando importação, aguarde...", Toast.LENGTH_SHORT).show();
 
-        ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler handler = new Handler(Looper.getMainLooper());
+        ExecutorService executorMain = Executors.newSingleThreadExecutor();
 
-        executor.execute(() -> {
-            int importados = 0;
-            int duplicados = 0;
-            int erros = 0;
+        executorMain.execute(() -> {
+            AtomicInteger importados = new AtomicInteger(0);
+            AtomicInteger duplicados = new AtomicInteger(0);
+            AtomicInteger erros = new AtomicInteger(0);
 
             try (InputStream inputStream = getContentResolver().openInputStream(uri);
                  XSSFWorkbook workbook = new XSSFWorkbook(inputStream)) {
 
                 XSSFSheet sheet = workbook.getSheetAt(0);
-                int totalLinhas = sheet.getLastRowNum();
+                Row header = sheet.getRow(0);
+                if (header == null) throw new Exception("Cabeçalho não encontrado!");
 
-                for (int i = 1; i <= totalLinhas; i++) {
-                    try {
-                        Row row = sheet.getRow(i);
-                        if (row == null) continue;
-
-                        String nome = row.getCell(0).getStringCellValue().trim();
-                        String codFilial = row.getCell(1).getStringCellValue().trim();
-                        String codLocal = row.getCell(2).getStringCellValue().trim();
-
-                        // ✅ limpa caracteres inválidos
-                        codFilial = codFilial.replaceAll("[^0-9]", "");
-                        codLocal = codLocal.replaceAll("[^0-9]", "");
-
-                        // ✅ valida tamanhos
-                        if (codFilial.length() != 3 || codLocal.length() != 4) {
-                            erros++;
-                            continue;
-                        }
-
-                        if (dbHelper.existeCodigoLocal(codLocal)) {
-                            duplicados++;
-                            continue;
-                        }
-
-                        Local local = new Local(0, nome, codFilial, codLocal);
-                        dbHelper.salvarLocal(local);
-                        importados++;
-
-                    } catch (Exception ex) {
-                        erros++;
-                        Log.e("IMPORT_XLSX", "Erro linha " + i + ": " + ex.getMessage());
-                    }
+                int colLocalNome = -1, colFilial = -1, colLocal = -1;
+                for (int c = 0; c < header.getLastCellNum(); c++) {
+                    if (header.getCell(c) == null) continue;
+                    String title = getCellValue(header.getCell(c)).trim();
+                    if (title.equalsIgnoreCase("Local_Nome")) colLocalNome = c;
+                    if (title.equalsIgnoreCase("Código Filial")) colFilial = c;
+                    if (title.equalsIgnoreCase("Código Local")) colLocal = c;
                 }
 
-                int fImportados = importados;
-                int fDuplicados = duplicados;
-                int fErros = erros;
+                if (colLocalNome == -1 || colFilial == -1 || colLocal == -1)
+                    throw new Exception("As colunas Local_Nome / Código Filial / Código Local não foram encontradas!");
 
-                handler.post(() -> {
-                    carregarLocais();
-                    Toast.makeText(
-                            this,
-                            "✅ Importação concluída!\nImportados: " + fImportados +
-                                    "\nDuplicados: " + fDuplicados +
-                                    "\nErros: " + fErros,
-                            Toast.LENGTH_LONG
-                    ).show();
-                });
+                final int finalColLocalNome = colLocalNome;
+                final int finalColFilial = colFilial;
+                final int finalColLocal = colLocal;
+
+                int totalLinhas = sheet.getLastRowNum();
+                int bloco = 100;
+
+                ExecutorService executorParalelo = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+
+                for (int inicio = 1; inicio <= totalLinhas; inicio += bloco) {
+                    int fim = Math.min(inicio + bloco - 1, totalLinhas);
+                    int finalInicio = inicio;
+                    int finalFim = fim;
+
+                    executorParalelo.submit(() -> {
+                        for (int i = finalInicio; i <= finalFim; i++) {
+                            try {
+                                Row row = sheet.getRow(i);
+                                if (row == null) continue;
+
+                                String nome = getCellValue(row.getCell(finalColLocalNome)).trim();
+                                String codFilialRaw = getCellValue(row.getCell(finalColFilial)).replaceAll("[^0-9]", "");
+                                String codLocalRaw = getCellValue(row.getCell(finalColLocal)).replaceAll("[^0-9]", "");
+
+                                String codFilial = codFilialRaw.isEmpty() ? "" : String.format("%03d", Integer.parseInt(codFilialRaw));
+                                String codLocalStr = codLocalRaw.isEmpty() ? "" : String.format("%04d", Integer.parseInt(codLocalRaw));
+
+                                if (codFilial.length() != 3 || codLocalStr.length() != 4) {
+                                    erros.incrementAndGet();
+                                    Log.e("IMPORT_XLSX", "Linha " + i + " ignorada: códigos inválidos - Filial: " + codFilial + ", Local: " + codLocalStr);
+                                    continue;
+                                }
+
+                                if (dbHelper.existeCodigoLocal(codLocalStr)) {
+                                    duplicados.incrementAndGet();
+                                    Log.w("IMPORT_XLSX", "Linha " + i + " duplicada: Local " + codLocalStr);
+                                    continue;
+                                }
+
+                                Local local = new Local(0, nome, codFilial, codLocalStr);
+                                dbHelper.salvarLocal(local);
+                                importados.incrementAndGet();
+
+                            } catch (Exception ex) {
+                                erros.incrementAndGet();
+                                Log.e("IMPORT_XLSX", "Erro linha " + i + ": " + ex.getMessage(), ex);
+                            }
+
+                            // Atualiza UI a cada 10 linhas
+                            if (i % 10 == 0 || i == finalFim) {
+                                int fImportados = importados.get();
+                                int fDuplicados = duplicados.get();
+                                int fErros = erros.get();
+                                int processadas = i;
+
+                                handler.post(() -> txtDadosSalvos.setText(
+                                        "Processadas: " + processadas + " / " + totalLinhas +
+                                                "\nImportados: " + fImportados +
+                                                "\nDuplicados: " + fDuplicados +
+                                                "\nErros: " + fErros
+                                ));
+                            }
+                        }
+                    });
+                }
+
+                executorParalelo.shutdown();
+                while (!executorParalelo.isTerminated()) Thread.sleep(100);
+
+                handler.post(() -> Toast.makeText(this, "✅ Importação concluída!", Toast.LENGTH_LONG).show());
 
             } catch (Exception e) {
-                handler.post(() -> Toast.makeText(
-                        this,
-                        "❌ Erro geral ao importar: " + e.getMessage(),
-                        Toast.LENGTH_LONG
-                ).show());
+                Log.e("IMPORT_XLSX", "Erro geral na importação: " + e.getMessage(), e);
+                handler.post(() -> Toast.makeText(this, "❌ Erro geral ao importar: " + e.getMessage(), Toast.LENGTH_LONG).show());
             } finally {
-                executor.shutdown();
+                executorMain.shutdown();
             }
         });
     }

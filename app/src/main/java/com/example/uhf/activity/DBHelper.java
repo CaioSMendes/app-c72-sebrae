@@ -11,7 +11,9 @@ import com.example.uhf.model.Usuario;    // Import necessário
 import com.example.uhf.model.Local;    // Import necessário
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DBHelper extends SQLiteOpenHelper {
 
@@ -152,6 +154,33 @@ public class DBHelper extends SQLiteOpenHelper {
         db.close();
         return user;
     }
+
+    public Set<String> getTodasMatriculas() {
+        Set<String> matriculas = new HashSet<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT matricula FROM " + TABLE_USUARIO, null);
+        if (cursor.moveToFirst()) {
+            do {
+                matriculas.add(cursor.getString(cursor.getColumnIndexOrThrow(COL_MATRICULA)));
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return matriculas;
+    }
+
+    public boolean existeNome(String nome) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT 1 FROM usuarios WHERE nome = ? LIMIT 1",
+                new String[]{nome}
+        );
+
+        boolean existe = cursor.moveToFirst();
+        cursor.close();
+        return existe;
+    }
+
 
     // PATRIMÔNIOS
     public boolean inserirPatrimonio(String patrimonio, String descricao, String codigoBarra) {

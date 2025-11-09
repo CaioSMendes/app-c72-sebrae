@@ -148,35 +148,67 @@ public class PatrimonioActivity extends Activity {
                      Workbook workbook = new XSSFWorkbook(inputStream)) {
 
                     Sheet sheet = workbook.getSheetAt(0);
+
+                    // ✅ Ler o cabeçalho
+                    Row header = sheet.getRow(0);
+                    if (header == null) throw new Exception("Cabeçalho inválido!");
+
+                    int colPatrimonio = -1;
+                    int colDescricao = -1;
+                    int colCodigoBarra = -1;
+
+                    for (int c = 0; c < header.getLastCellNum(); c++) {
+                        if (header.getCell(c) == null) continue;
+                        String title = header.getCell(c).getStringCellValue().trim();
+                        if (title.equalsIgnoreCase("Patrimônio")) colPatrimonio = c;
+                        if (title.equalsIgnoreCase("Descrição")) colDescricao = c;
+                        if (title.equalsIgnoreCase("Código de Barra")) colCodigoBarra = c;
+                    }
+
+                    if (colPatrimonio == -1 || colDescricao == -1 || colCodigoBarra == -1)
+                        throw new Exception("As colunas Patrimônio / Descrição / Código de Barra não foram encontradas!");
+
                     int totalLinhas = sheet.getLastRowNum();
 
+                    // Função auxiliar para ler qualquer tipo de célula
+                    java.util.function.BiFunction<Row, Integer, String> getCellValue = (r, col) -> {
+                        if (r.getCell(col) == null) return "";
+                        switch (r.getCell(col).getCellType()) {
+                            case STRING: return r.getCell(col).getStringCellValue().trim();
+                            case NUMERIC: return String.valueOf((long) r.getCell(col).getNumericCellValue());
+                            case BOOLEAN: return String.valueOf(r.getCell(col).getBooleanCellValue());
+                            default: return "";
+                        }
+                    };
+
                     for (int i = 1; i <= totalLinhas; i++) {
+                        Row row = sheet.getRow(i);
+                        if (row == null) continue;
+
                         try {
-                            Row row = sheet.getRow(i);
-                            if (row == null) continue;
-
-                            String patrimonio = row.getCell(0).getStringCellValue().trim();
-                            String descricao = row.getCell(1).getStringCellValue().trim();
-                            String codigo = row.getCell(2).getStringCellValue().trim();
-
-                            patrimonio = patrimonio.replaceAll("[^0-9]", "");
-                            codigo = codigo.replaceAll("[^0-9]", "");
+                            String patrimonio = getCellValue.apply(row, colPatrimonio).replaceAll("[^0-9]", "");
+                            String descricao = getCellValue.apply(row, colDescricao);
+                            String codigo = getCellValue.apply(row, colCodigoBarra).replaceAll("[^0-9]", "");
 
                             if (patrimonio.length() != 8 || codigo.length() != 8) {
                                 countErros++;
+                                Log.e("IMPORTACAO", "Linha " + i + " ignorada: Patrimônio=" + patrimonio + ", Código=" + codigo);
                                 continue;
                             }
 
                             boolean sucesso = db.inserirPatrimonio(patrimonio, descricao, codigo);
-                            if (sucesso) countSalvos++;
-                            else countDuplicados++;
+                            if (sucesso) {
+                                countSalvos++;
+                            } else {
+                                countDuplicados++;
+                                Log.w("IMPORTACAO", "Linha " + i + " duplicada: Patrimônio=" + patrimonio);
+                            }
 
                             if (i % 100 == 0 || i == totalLinhas) {
                                 final int finalI = i;
                                 final int finalSalvos = countSalvos;
                                 final int finalDuplicados = countDuplicados;
                                 final int finalErros = countErros;
-
                                 handler.post(() -> txtStatus.setText(
                                         "Processadas " + finalI + " de " + totalLinhas +
                                                 "\nSalvos: " + finalSalvos +
@@ -187,11 +219,10 @@ public class PatrimonioActivity extends Activity {
 
                         } catch (Exception linhaEx) {
                             countErros++;
-                            Log.e("IMPORTACAO", "Erro linha " + i + ": " + linhaEx.getMessage());
+                            Log.e("IMPORTACAO", "Erro linha " + i + ": " + linhaEx.getMessage(), linhaEx);
                         }
                     }
 
-                    // Atualização final após o loop
                     final int finalSalvos = countSalvos;
                     final int finalDuplicados = countDuplicados;
                     final int finalErros = countErros;
@@ -205,6 +236,7 @@ public class PatrimonioActivity extends Activity {
                     });
 
                 } catch (Exception e) {
+                    Log.e("IMPORTACAO", "Erro geral na importação: " + e.getMessage(), e);
                     handler.post(() -> {
                         txtStatus.setText("❌ Erro geral ao importar: " + e.getMessage());
                         Toast.makeText(this, "Erro ao importar: " + e.getMessage(), Toast.LENGTH_LONG).show();
