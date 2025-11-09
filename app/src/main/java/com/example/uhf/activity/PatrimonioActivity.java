@@ -6,6 +6,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -33,6 +36,8 @@ public class PatrimonioActivity extends Activity {
     private DBHelper db;
     private static final int PICK_FILE_REQUEST = 1;
 
+    private boolean editando = false; // evita loop infinito do TextWatcher
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,9 +53,35 @@ public class PatrimonioActivity extends Activity {
         btnExibir = findViewById(R.id.btnExibir);
         btnUpload = findViewById(R.id.btnUpload);
 
+        // configuração dos campos numéricos para 8 dígitos
+        configurarCampoNumerico8(edtPat);
+        configurarCampoNumerico8(edtCod);
+
         btnSalvar.setOnClickListener(v -> salvarPatrimonio());
         btnExibir.setOnClickListener(v -> abrirLista());
         btnUpload.setOnClickListener(v -> importarPlanilha());
+    }
+
+    // configura campo numérico com limite de 8 dígitos
+    private void configurarCampoNumerico8(EditText campo) {
+        campo.setFilters(new InputFilter[]{new InputFilter.LengthFilter(8)});
+        campo.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (editando) return;
+                editando = true;
+
+                String somenteNumeros = s.toString().replaceAll("[^0-9]", "");
+                if (!somenteNumeros.equals(s.toString())) {
+                    campo.setText(somenteNumeros);
+                    campo.setSelection(somenteNumeros.length());
+                }
+
+                editando = false;
+            }
+        });
     }
 
     private void salvarPatrimonio() {
@@ -63,15 +94,24 @@ public class PatrimonioActivity extends Activity {
             return;
         }
 
-        boolean sucesso = db.inserirPatrimonio(pat, desc, cod);
+        if (pat.length() != 8) {
+            Toast.makeText(this, "O número de patrimônio deve ter 8 dígitos", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
+        if (cod.length() != 8) {
+            Toast.makeText(this, "O código RFID deve ter 8 dígitos", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        boolean sucesso = db.inserirPatrimonio(pat, desc, cod);
         if (sucesso) {
             txtStatus.setText("Ativo salvo com sucesso!");
             edtPat.setText("");
             edtDesc.setText("");
             edtCod.setText("");
         } else {
-            txtStatus.setText("Erro: código de barra já existe!");
+            txtStatus.setText("Erro: código RFID já existe!");
         }
     }
 
@@ -119,46 +159,52 @@ public class PatrimonioActivity extends Activity {
                             String descricao = row.getCell(1).getStringCellValue().trim();
                             String codigo = row.getCell(2).getStringCellValue().trim();
 
+                            patrimonio = patrimonio.replaceAll("[^0-9]", "");
+                            codigo = codigo.replaceAll("[^0-9]", "");
+
+                            if (patrimonio.length() != 8 || codigo.length() != 8) {
+                                countErros++;
+                                continue;
+                            }
+
                             boolean sucesso = db.inserirPatrimonio(patrimonio, descricao, codigo);
                             if (sucesso) countSalvos++;
                             else countDuplicados++;
 
-                            // Atualiza UI a cada 100 linhas
                             if (i % 100 == 0 || i == totalLinhas) {
                                 final int finalI = i;
-                                final int finalCountSalvos = countSalvos;
-                                final int finalCountDuplicados = countDuplicados;
-                                final int finalCountErros = countErros;
+                                final int finalSalvos = countSalvos;
+                                final int finalDuplicados = countDuplicados;
+                                final int finalErros = countErros;
 
                                 handler.post(() -> txtStatus.setText(
                                         "Processadas " + finalI + " de " + totalLinhas +
-                                                "\nSalvos: " + finalCountSalvos +
-                                                "\nDuplicados: " + finalCountDuplicados +
-                                                "\nErros: " + finalCountErros
+                                                "\nSalvos: " + finalSalvos +
+                                                "\nDuplicados: " + finalDuplicados +
+                                                "\nErros: " + finalErros
                                 ));
                             }
 
                         } catch (Exception linhaEx) {
                             countErros++;
-                            Log.e("IMPORTACAO", "Erro na linha " + i + ": " + linhaEx.getMessage());
+                            Log.e("IMPORTACAO", "Erro linha " + i + ": " + linhaEx.getMessage());
                         }
                     }
 
-                    // ✅ Atualiza resultado final
-                    final int totalSalvos = countSalvos;
-                    final int totalDuplicados = countDuplicados;
-                    final int totalErros = countErros;
+                    // Atualização final após o loop
+                    final int finalSalvos = countSalvos;
+                    final int finalDuplicados = countDuplicados;
+                    final int finalErros = countErros;
 
                     handler.post(() -> {
                         txtStatus.setText("✅ Importação concluída!\n" +
-                                "Salvos: " + totalSalvos +
-                                "\nDuplicados: " + totalDuplicados +
-                                "\nErros: " + totalErros);
-                        Toast.makeText(this, "Importação finalizada com sucesso!", Toast.LENGTH_LONG).show();
+                                "Salvos: " + finalSalvos +
+                                "\nDuplicados: " + finalDuplicados +
+                                "\nErros: " + finalErros);
+                        Toast.makeText(this, "Importação finalizada!", Toast.LENGTH_LONG).show();
                     });
 
                 } catch (Exception e) {
-                    e.printStackTrace();
                     handler.post(() -> {
                         txtStatus.setText("❌ Erro geral ao importar: " + e.getMessage());
                         Toast.makeText(this, "Erro ao importar: " + e.getMessage(), Toast.LENGTH_LONG).show();

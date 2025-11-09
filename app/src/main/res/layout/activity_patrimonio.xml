@@ -72,7 +72,8 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:hint="Número de patrimônio"
-                    android:inputType="text" />
+                    android:inputType="number"
+                    android:maxLength="8"/>
             </LinearLayout>
 
             <!-- Campo Matrícula -->
@@ -97,7 +98,8 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:hint="Código RFID"
-                    android:inputType="text" />
+                    android:inputType="number"
+                    android:maxLength="8"/>
             </LinearLayout>
 
             <!-- Campo Matrícula -->

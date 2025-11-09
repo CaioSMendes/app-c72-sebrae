@@ -22,7 +22,8 @@ public class HomeActivity extends AppCompatActivity {
 
 
         btnInventario.setOnClickListener(v -> {
-            Intent intent = new Intent(this, InventarioActivity.class);
+            //Intent intent = new Intent(this, InventarioActivity.class);
+            Intent intent = new Intent(this, OpcaoActivity.class);
             startActivity(intent);
         });
 

@@ -97,7 +97,8 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:hint="Código Local"
-                    android:inputType="text" />
+                    android:inputType="number"
+                    android:maxLength="4"/>
             </LinearLayout>
 
             <!-- Código Filial -->
@@ -122,7 +123,8 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:hint="Código Filial"
-                    android:inputType="text" />
+                    android:inputType="number"
+                    android:maxLength="3"/>
             </LinearLayout>
 
             <!-- Linha com os três botões lado a lado -->

@@ -11,6 +11,10 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera.autofocus" />
+    <uses-feature android:name="android.hardware.screen.portrait" />
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
@@ -57,6 +61,9 @@
 
         <activity android:name=".activity.InventarioActivity" />
         <activity android:name=".activity.ConsultaTagActivity" />
+        <activity android:name=".activity.OpcaoActivity" />
+        <activity android:name=".activity.InventarioCodBarraActivity" />
+        <activity android:name=".activity.ConsultaCodBarraActivity" />
 
         <activity android:name=".activity.LocalActivity" />
         <activity android:name=".activity.ListaLocaisActivity" />

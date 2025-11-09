@@ -12,18 +12,18 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.uhf.R;
 
-public class InventarioActivity extends AppCompatActivity {
+public class InventarioCodBarraActivity extends AppCompatActivity {
 
     private EditText editCodigoFilial, editCodigoLocal, editChapaFuncionario;
     private LinearLayout buttonPesquisar;
     private DBHelper dbHelper;
 
-    private String tipoLeitura; // <-- RECEBE RFID ou CODBARRA
+    private String tipoLeitura;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_inventario);
+        setContentView(R.layout.activity_inventario_codbarra);
 
         editCodigoFilial = findViewById(R.id.editCodigoFilial);
         editCodigoLocal = findViewById(R.id.editCodigoLocal);
@@ -32,8 +32,7 @@ public class InventarioActivity extends AppCompatActivity {
 
         dbHelper = new DBHelper(this);
 
-        // RECEBE O TIPO DE LEITURA ENVIADO PELA OpcaoActivity
-        tipoLeitura = getIntent().getStringExtra("tipoLeitura");
+        tipoLeitura = getIntent().getStringExtra("tipoLeitura"); // deve ser "CODBARRA"
 
         buttonPesquisar.setOnClickListener(v -> verificarCampos());
     }
@@ -81,19 +80,8 @@ public class InventarioActivity extends AppCompatActivity {
             return;
         }
 
-        // ✅ Escolhe a próxima tela de acordo com o tipo de leitura
-        Intent intent;
-
-        if ("RFID".equals(tipoLeitura)) {
-            intent = new Intent(this, ConsultaTagActivity.class);
-        }
-        else if ("CODBARRA".equals(tipoLeitura)) {
-            intent = new Intent(this, InventarioCodBarraActivity.class); // nova activity
-        }
-        else {
-            mostrarAlerta("Tipo de leitura inválido.");
-            return;
-        }
+        // Próxima etapa → abrir tela de leitura por código de barras
+        Intent intent = new Intent(this, ConsultaCodBarraActivity.class);
 
         intent.putExtra("codigoFilial", codigoFilial);
         intent.putExtra("codigoLocal", codigoLocal);

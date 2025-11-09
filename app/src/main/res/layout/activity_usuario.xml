@@ -97,7 +97,8 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:hint="Chapa"
-                    android:inputType="text" />
+                    android:inputType="number"
+                    android:maxLength="4"/>
             </LinearLayout>
 
             <!-- Linha com os três botões lado a lado -->

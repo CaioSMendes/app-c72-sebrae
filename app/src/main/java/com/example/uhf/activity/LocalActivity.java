@@ -5,9 +5,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -41,31 +43,60 @@ public class LocalActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_local);
 
-        // Inicializa Views
         edtLocal = findViewById(R.id.edtlocal);
         edtCodLocal = findViewById(R.id.edtCodLoc);
         edtCodFilial = findViewById(R.id.edtCodFilial);
-
         listViewLocais = findViewById(R.id.listViewLocais);
 
         dbHelper = new DBHelper(this);
 
-        // Carrega lista ao abrir a activity
+        // ✅ CÓDIGO LOCAL — somente números e máximo 4 dígitos
+        edtCodLocal.setFilters(new InputFilter[]{
+                new InputFilter.LengthFilter(4)
+        });
+
+        edtCodLocal.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String limpo = s.toString().replaceAll("[^0-9]", "");
+                if (!limpo.equals(s.toString())) {
+                    edtCodLocal.setText(limpo);
+                    edtCodLocal.setSelection(limpo.length());
+                }
+            }
+        });
+
+        // ✅ CÓDIGO FILIAL — somente números e máximo 3 dígitos
+        edtCodFilial.setFilters(new InputFilter[]{
+                new InputFilter.LengthFilter(3)
+        });
+
+        edtCodFilial.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String limpo = s.toString().replaceAll("[^0-9]", "");
+                if (!limpo.equals(s.toString())) {
+                    edtCodFilial.setText(limpo);
+                    edtCodFilial.setSelection(limpo.length());
+                }
+            }
+        });
+
         carregarLocais();
 
-        // Botão Salvar
         findViewById(R.id.btnSalvar).setOnClickListener(v -> salvarLocal());
-
-        // Botão Exibir → abre a lista completa em outra Activity
         findViewById(R.id.btnExibir).setOnClickListener(v -> {
             Intent intent = new Intent(LocalActivity.this, ListaLocaisActivity.class);
             startActivity(intent);
         });
-
-        // Botão Carregar XLSX
         findViewById(R.id.btnUpload).setOnClickListener(v -> abrirSeletorXLSX());
 
-        // Clique em item da lista (se ListView existir)
         if (listViewLocais != null) {
             listViewLocais.setOnItemClickListener((parent, view, position, id) -> {
                 Local localSelecionado = listaLocais.get(position);
@@ -82,7 +113,7 @@ public class LocalActivity extends AppCompatActivity {
         carregarLocais();
     }
 
-    // ================= Funções =================
+    // ==================== SALVAR ====================
 
     private void salvarLocal() {
         String nome = edtLocal.getText().toString().trim();
@@ -91,6 +122,17 @@ public class LocalActivity extends AppCompatActivity {
 
         if (nome.isEmpty() || codLocal.isEmpty() || codFilial.isEmpty()) {
             Toast.makeText(this, "Preencha todos os campos", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // ✅ validações dos tamanhos
+        if (codLocal.length() != 4) {
+            Toast.makeText(this, "O Código Local deve ter exatamente 4 dígitos", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (codFilial.length() != 3) {
+            Toast.makeText(this, "O Código Filial deve ter exatamente 3 dígitos", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -113,6 +155,8 @@ public class LocalActivity extends AppCompatActivity {
         }
     }
 
+    // ==================== LISTAR ====================
+
     private void carregarLocais() {
         if (listViewLocais == null) return;
 
@@ -126,11 +170,11 @@ public class LocalActivity extends AppCompatActivity {
                 android.R.layout.simple_list_item_1, nomesLocais));
     }
 
-    // ================= XLSX =================
+    // ==================== XLSX ====================
 
     private void abrirSeletorXLSX() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("*/*"); // aceita todos os arquivos
+        intent.setType("*/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         startActivityForResult(Intent.createChooser(intent, "Selecione um arquivo Excel"), REQUEST_CODE_XLSX);
     }
@@ -148,10 +192,8 @@ public class LocalActivity extends AppCompatActivity {
     }
 
     private void importarXLSX(Uri uri) {
-        // Mostra status inicial
         Toast.makeText(this, "Iniciando importação, aguarde...", Toast.LENGTH_SHORT).show();
 
-        // Executor em thread separada
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler handler = new Handler(Looper.getMainLooper());
 
@@ -166,70 +208,56 @@ public class LocalActivity extends AppCompatActivity {
                 XSSFSheet sheet = workbook.getSheetAt(0);
                 int totalLinhas = sheet.getLastRowNum();
 
-                for (int i = 1; i <= totalLinhas; i++) { // pula cabeçalho
+                for (int i = 1; i <= totalLinhas; i++) {
                     try {
                         Row row = sheet.getRow(i);
                         if (row == null) continue;
 
-                        // ⚙️ Lê colunas exatamente conforme o cabeçalho
-                        String nome = row.getCell(0).getStringCellValue().trim();          // Local_Nome
-                        String codFilial = row.getCell(1).getStringCellValue().trim();     // Código Filial
-                        String codLocal = row.getCell(2).getStringCellValue().trim();      // Código Local
+                        String nome = row.getCell(0).getStringCellValue().trim();
+                        String codFilial = row.getCell(1).getStringCellValue().trim();
+                        String codLocal = row.getCell(2).getStringCellValue().trim();
 
-                        // 🔍 Verifica duplicado
+                        // ✅ limpa caracteres inválidos
+                        codFilial = codFilial.replaceAll("[^0-9]", "");
+                        codLocal = codLocal.replaceAll("[^0-9]", "");
+
+                        // ✅ valida tamanhos
+                        if (codFilial.length() != 3 || codLocal.length() != 4) {
+                            erros++;
+                            continue;
+                        }
+
                         if (dbHelper.existeCodigoLocal(codLocal)) {
                             duplicados++;
                             continue;
                         }
 
-                        // 💾 Salva no banco
                         Local local = new Local(0, nome, codFilial, codLocal);
                         dbHelper.salvarLocal(local);
                         importados++;
 
-                        // 🔄 Atualiza a UI a cada 100 registros ou no final
-                        if (i % 100 == 0 || i == totalLinhas) {
-                            final int finalI = i;
-                            final int finalImportados = importados;
-                            final int finalDuplicados = duplicados;
-                            final int finalErros = erros;
-
-                            handler.post(() -> Toast.makeText(
-                                    this,
-                                    "Processadas " + finalI + " linhas...\n" +
-                                            "Importados: " + finalImportados +
-                                            "\nDuplicados: " + finalDuplicados +
-                                            "\nErros: " + finalErros,
-                                    Toast.LENGTH_SHORT
-                            ).show());
-                        }
-
-                    } catch (Exception linhaEx) {
+                    } catch (Exception ex) {
                         erros++;
-                        // Loga o erro, mas continua o loop
-                        Log.e("IMPORT_XLSX", "Erro na linha " + i + ": " + linhaEx.getMessage());
+                        Log.e("IMPORT_XLSX", "Erro linha " + i + ": " + ex.getMessage());
                     }
                 }
 
-                // ✅ Finaliza a execução na thread principal
-                final int totalImportados = importados;
-                final int totalDuplicados = duplicados;
-                final int totalErros = erros;
+                int fImportados = importados;
+                int fDuplicados = duplicados;
+                int fErros = erros;
 
                 handler.post(() -> {
                     carregarLocais();
                     Toast.makeText(
                             this,
-                            "✅ Importação concluída!\n" +
-                                    "Importados: " + totalImportados +
-                                    "\nDuplicados: " + totalDuplicados +
-                                    "\nErros: " + totalErros,
+                            "✅ Importação concluída!\nImportados: " + fImportados +
+                                    "\nDuplicados: " + fDuplicados +
+                                    "\nErros: " + fErros,
                             Toast.LENGTH_LONG
                     ).show();
                 });
 
             } catch (Exception e) {
-                e.printStackTrace();
                 handler.post(() -> Toast.makeText(
                         this,
                         "❌ Erro geral ao importar: " + e.getMessage(),
