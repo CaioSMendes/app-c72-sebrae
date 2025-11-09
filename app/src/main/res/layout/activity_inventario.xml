@@ -121,7 +121,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
-                    android:hint="Chapa do Funcionário"
+                    android:hint="Chapa do Responsável"
                     android:inputType="number"
                     android:maxLength="4"/>
             </LinearLayout>
