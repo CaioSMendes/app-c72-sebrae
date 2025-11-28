@@ -20,7 +20,7 @@ import java.util.Set;
 public class DBHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "sebraeapp.db";
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 6;
 
     private static final String TABLE_USUARIO = "usuarios";
     private static final String COL_NOME = "nome";
@@ -66,6 +66,7 @@ public class DBHelper extends SQLiteOpenHelper {
 
         db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_HISTORICO + " (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "sessaoId TEXT, " +
                 "filial TEXT, " +
                 "localCodigo TEXT, " +
                 "matricula TEXT, " +
@@ -127,7 +128,6 @@ public class DBHelper extends SQLiteOpenHelper {
                 new String[] { sessaoId }
         );
     }
-
 
     public Cursor listarHistoricoPorLocal(String codigoLocal) {
         SQLiteDatabase db = this.getReadableDatabase();
