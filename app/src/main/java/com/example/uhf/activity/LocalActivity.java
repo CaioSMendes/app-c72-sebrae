@@ -58,6 +58,7 @@ public class LocalActivity extends AppCompatActivity {
         // Limitar e aceitar somente números
         configurarEditTextNumerico(edtCodLocal, 4);
         configurarEditTextNumerico(edtCodFilial, 3);
+        edtCodFilial.setText("001");
 
         carregarLocais();
 

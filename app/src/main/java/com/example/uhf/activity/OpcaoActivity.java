@@ -13,6 +13,8 @@ public class OpcaoActivity extends AppCompatActivity {
 
     private LinearLayout btnLeituraRFID;
     private LinearLayout btnLeituraCodBarra;
+    private LinearLayout btnHistoricoInventario;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,6 +23,7 @@ public class OpcaoActivity extends AppCompatActivity {
 
         btnLeituraRFID = findViewById(R.id.btnLeituraRFID);
         btnLeituraCodBarra = findViewById(R.id.btnLeituraCodBarra);
+        btnHistoricoInventario = findViewById(R.id.btnHistoricoInventario);
 
         // RFID → InventarioActivity
         btnLeituraRFID.setOnClickListener(new View.OnClickListener() {
@@ -38,6 +41,16 @@ public class OpcaoActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent intent = new Intent(OpcaoActivity.this, InventarioCodBarraActivity.class);
                 intent.putExtra("tipoLeitura", "CODBARRA");
+                startActivity(intent);
+            }
+        });
+
+        // Historico
+        btnHistoricoInventario.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(OpcaoActivity.this, HistoricoActivity.class);
+                //intent.putExtra("tipoLeitura", "CODBARRA");
                 startActivity(intent);
             }
         });

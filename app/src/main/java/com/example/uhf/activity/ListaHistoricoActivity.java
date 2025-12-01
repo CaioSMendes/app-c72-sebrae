@@ -13,7 +13,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputFilter;
 import android.text.InputType;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -59,6 +61,8 @@ public class ListaHistoricoActivity extends AppCompatActivity {
     ArrayList<String> matriculas = new ArrayList<>();
     ArrayList<String> tags = new ArrayList<>();
 
+    // AGORA É GLOBAL
+    HistoricoDetalheAdapter adapter;
     String localCodigoTela = "";
     String codigoFilial = "001";
     String chapaFuncionario = "00000001";
@@ -87,10 +91,11 @@ public class ListaHistoricoActivity extends AppCompatActivity {
             if (chap != null) chapaFuncionario = chap;
         }
 
-        // Botões
+        // Botões -------------- AQUI ESTAVA O ERRO
         LinearLayout btnTxt = findViewById(R.id.btnConcluir);
         LinearLayout btnPdf = findViewById(R.id.btnResumo);
         LinearLayout btnVoltar = findViewById(R.id.btnIncluir);
+        LinearLayout btnExcluir = findViewById(R.id.btnExcluir); // <-- CORREÇÃO
 
         carregar(localCodigoTela);
 
@@ -110,8 +115,130 @@ public class ListaHistoricoActivity extends AppCompatActivity {
             gerarPDFComEmail();
         });
 
-        btnVoltar.setOnClickListener(v -> finish());
+        list.setOnItemClickListener((adapterView, view, position, id) -> {
+            adapter.toggleSelection(position);
+
+            if (adapter.getSelecionados().size() > 0) {
+                btnExcluir.setVisibility(View.VISIBLE);
+            } else {
+                btnExcluir.setVisibility(View.GONE);
+            }
+        });
+
+        btnExcluir.setOnClickListener(v -> {
+            ArrayList<Integer> sel = adapter.getSelecionados();
+            sel.sort((a, b) -> b - a);
+
+            for (int pos : sel) {
+                db.deletarPorTag(tags.get(pos));
+                locais.remove(pos);
+                matriculas.remove(pos);
+                tags.remove(pos);
+            }
+
+            adapter.clearSelection();
+            adapter.notifyDataSetChanged();
+            btnExcluir.setVisibility(View.GONE);
+        });
+
+        btnVoltar.setOnClickListener(v -> abrirPopupIncluir());
     }
+
+    private void carregarHistorico() {
+        matriculas.clear();
+        locais.clear();
+        tags.clear();
+
+        Cursor c = db.getHistoricoPorLocal(localCodigoTela);
+
+        while (c.moveToNext()) {
+
+            String m = c.getString(c.getColumnIndex("matricula"));
+            String l = c.getString(c.getColumnIndex("localCodigo"));
+            String t = c.getString(c.getColumnIndex("tag"));
+
+            matriculas.add(m);
+            locais.add(l);
+            tags.add(t);
+        }
+
+        c.close();
+
+        adapter.notifyDataSetChanged();
+    }
+
+
+    private void abrirPopupIncluir() {
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(40, 20, 40, 10);
+
+        // ➤ MATRÍCULA (4 dígitos)
+        EditText edtMatricula = new EditText(this);
+        edtMatricula.setHint("Matrícula");
+        edtMatricula.setInputType(InputType.TYPE_CLASS_NUMBER);
+        edtMatricula.setFilters(new InputFilter[]{
+                new InputFilter.LengthFilter(4)
+        });
+        layout.addView(edtMatricula);
+
+        // ➤ CÓDIGO LOCAL — preenchido e bloqueado
+        EditText edtLocal = new EditText(this);
+        edtLocal.setHint("Código Local");
+        edtLocal.setText(localCodigoTela);
+        edtLocal.setEnabled(false);
+        edtLocal.setTextColor(Color.GRAY);
+        layout.addView(edtLocal);
+
+        // ➤ TAG EPC (6 dígitos)
+        EditText edtTag = new EditText(this);
+        edtTag.setHint("Tag EPC");
+        edtTag.setInputType(InputType.TYPE_CLASS_NUMBER);
+        edtTag.setFilters(new InputFilter[]{
+                new InputFilter.LengthFilter(6)
+        });
+        layout.addView(edtTag);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Incluir novo registro")
+                .setView(layout)
+                .setPositiveButton("Salvar", (dialog, which) -> {
+
+                    String matricula = edtMatricula.getText().toString().trim();
+                    String codigoLocal = edtLocal.getText().toString().trim();
+                    String tag = edtTag.getText().toString().trim();
+
+                    // ➤ Validações
+                    if (matricula.length() != 4) {
+                        Toast.makeText(this, "A matrícula deve ter 4 dígitos!", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (codigoLocal.length() != 4) {
+                        Toast.makeText(this, "O código local deve ter 4 dígitos!", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (tag.length() != 6) {
+                        Toast.makeText(this, "A Tag EPC deve ter 6 dígitos!", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    // ➤ SALVA NO BANCO
+                    db.inserirHistorico(matricula, codigoLocal, tag);
+
+                    // ➤ RECARREGA LISTA DO BANCO
+                    carregarHistorico();
+
+                    // ➤ ATUALIZA O ADAPTER
+                    adapter.notifyDataSetChanged();
+
+                    Toast.makeText(this, "Registro adicionado!", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+
 
     // POPUP PARA DIGITAR E-MAIL
     private void abrirPopupEmail(List<File> arquivos) {
@@ -136,22 +263,21 @@ public class ListaHistoricoActivity extends AppCompatActivity {
 
     // CARREGAR LISTA DO BANCO
     private void carregar(String localCodigo) {
-        locais.clear();
-        matriculas.clear();
-        tags.clear();
 
-        Cursor c = db.listarHistoricoPorLocal(localCodigo);
+        locais = new ArrayList<>();
+        matriculas = new ArrayList<>();
+        tags = new ArrayList<>();
+
+        Cursor c = db.getDados(localCodigo);
 
         while (c.moveToNext()) {
-            tags.add(c.getString(c.getColumnIndexOrThrow("tag")));
-            matriculas.add(c.getString(c.getColumnIndexOrThrow("matricula")));
-            locais.add(c.getString(c.getColumnIndexOrThrow("localCodigo")));
+            locais.add(c.getString(0));
+            matriculas.add(c.getString(1));
+            tags.add(c.getString(2));
         }
         c.close();
 
-        HistoricoDetalheAdapter adapter =
-                new HistoricoDetalheAdapter(this, locais, matriculas, tags);
-
+        adapter = new HistoricoDetalheAdapter(this, locais, matriculas, tags);
         list.setAdapter(adapter);
     }
 

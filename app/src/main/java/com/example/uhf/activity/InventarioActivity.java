@@ -32,6 +32,8 @@ public class InventarioActivity extends AppCompatActivity {
 
         dbHelper = new DBHelper(this);
 
+        editCodigoFilial.setText("001");
+
         // RECEBE O TIPO DE LEITURA ENVIADO PELA OpcaoActivity
         tipoLeitura = getIntent().getStringExtra("tipoLeitura");
 

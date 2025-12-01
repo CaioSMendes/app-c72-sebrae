@@ -424,32 +424,25 @@ public class ConsultaTagActivity extends AppCompatActivity {
 
     private void gerarArquivoTXT() {
         try {
+            // 1️⃣ Pasta de export
             File pasta = new File(getExternalFilesDir(null), "export");
             if (!pasta.exists()) pasta.mkdirs();
 
-            java.text.SimpleDateFormat sdfData = new java.text.SimpleDateFormat("yyyy-MM-dd");
-            java.text.SimpleDateFormat sdfHora = new java.text.SimpleDateFormat("HH-mm");
-
-            String data = sdfData.format(new java.util.Date());
-            String hora = sdfHora.format(new java.util.Date());
-
-            String nomeArquivo = codigoLocal + "_" + data + "_" + hora + ".txt";
+            // 2️⃣ Nome do arquivo no formato desejado: <codigoLocal>_dd-MM-yy_HH-mm.txt
+            SimpleDateFormat sdfDataHora = new SimpleDateFormat("dd-MM-yy_HH-mm");
+            String dataHora = sdfDataHora.format(new Date());
+            String nomeArquivo = codigoLocal + "_" + dataHora + ".txt";
 
             File arquivo = new File(pasta, nomeArquivo);
-            FileOutputStream fos = new FileOutputStream(arquivo);
 
+            // 3️⃣ Criar conteúdo do arquivo
+            FileOutputStream fos = new FileOutputStream(arquivo);
             for (String epc : listaTags) {
 
-                // ======= Ajuste para TXT =======
-                String epcSemZero = epc.replaceFirst("^0+", ""); // remove zeros à esquerda
+                String epcSemZero = epc.replaceFirst("^0+", "");
                 String cincoDigitos = epcSemZero.length() >= 5 ? epcSemZero.substring(0, 5) : epcSemZero;
+                while (cincoDigitos.length() < 5) cincoDigitos += "0";
 
-                // completa com zeros à direita se tiver menos que 5
-                while (cincoDigitos.length() < 5) {
-                    cincoDigitos += "0";
-                }
-
-                // Prefixo 040
                 String codigoBarra = "040" + cincoDigitos;
 
                 String filialFmt = String.format("%03d", Integer.parseInt(codigoFilial));
@@ -461,9 +454,12 @@ public class ConsultaTagActivity extends AppCompatActivity {
 
                 fos.write(linha.getBytes());
             }
-
             fos.close();
+
+            // 4️⃣ Mostrar mensagem de sucesso
             Toast.makeText(this, "TXT gerado:\n" + arquivo.getAbsolutePath(), Toast.LENGTH_LONG).show();
+
+            // 5️⃣ Mostrar popup para envio de e-mail (mesmo arquivo)
             mostrarPopupEnvio(arquivo);
 
         } catch (Exception e) {

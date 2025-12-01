@@ -1,31 +1,33 @@
 package com.example.uhf.adapter;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.example.uhf.R;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 public class HistoricoDetalheAdapter extends BaseAdapter {
 
-    Context context;
+    Context ctx;
+    ArrayList<String> locais;
+    ArrayList<String> matriculas;
+    ArrayList<String> tags;
 
-    ArrayList<String> locais;       // ← Nome do local
-    ArrayList<String> matriculas;   // ← Matrícula do usuário
-    ArrayList<String> tags;         // ← TAG RFID
+    // Guarda posições selecionadas
+    private HashSet<Integer> selecionados = new HashSet<>();
 
-    public HistoricoDetalheAdapter(Context ctx,
+    public HistoricoDetalheAdapter(Context c,
                                    ArrayList<String> locais,
                                    ArrayList<String> matriculas,
                                    ArrayList<String> tags) {
-
-        this.context = ctx;
+        this.ctx = c;
         this.locais = locais;
         this.matriculas = matriculas;
         this.tags = tags;
@@ -38,7 +40,7 @@ public class HistoricoDetalheAdapter extends BaseAdapter {
 
     @Override
     public Object getItem(int position) {
-        return null;
+        return tags.get(position);
     }
 
     @Override
@@ -46,27 +48,45 @@ public class HistoricoDetalheAdapter extends BaseAdapter {
         return position;
     }
 
+    // Alterna seleção
+    public void toggleSelection(int position) {
+        if (selecionados.contains(position))
+            selecionados.remove(position);
+        else
+            selecionados.add(position);
+
+        notifyDataSetChanged();
+    }
+
+    public ArrayList<Integer> getSelecionados() {
+        return new ArrayList<>(selecionados);
+    }
+
+    public void clearSelection() {
+        selecionados.clear();
+        notifyDataSetChanged();
+    }
+
     @Override
-    public View getView(int pos, View convertView, ViewGroup parent) {
+    public View getView(int position, View convertView, ViewGroup parent) {
 
-        if (convertView == null)
-            convertView = LayoutInflater.from(context)
-                    .inflate(R.layout.item_historico_detalhe, parent, false);
+        View v = LayoutInflater.from(ctx).inflate(R.layout.item_historico_detalhe, parent, false);
 
-        // Campos do XML
-        ImageView imgIcon = convertView.findViewById(R.id.imgIcon);
-        TextView txtLocal = convertView.findViewById(R.id.txtLocal);
-        TextView txtMatricula = convertView.findViewById(R.id.txtMatricula);
-        TextView txtTag = convertView.findViewById(R.id.txtTag);
+        TextView txtLocal = v.findViewById(R.id.txtLocal);
+        TextView txtMatricula = v.findViewById(R.id.txtMatricula);
+        TextView txtTag = v.findViewById(R.id.txtTag);
 
-        // Setar valores
-        txtTag.setText("TAG: " + tags.get(pos));
-        txtMatricula.setText("Matrícula: " + matriculas.get(pos));
-        txtLocal.setText("Local: " + locais.get(pos));
+        txtLocal.setText(locais.get(position));
+        txtMatricula.setText(matriculas.get(position));
+        txtTag.setText(tags.get(position));
 
-        // Se quiser mudar ícone dependendo do tipo, posso adicionar depois
-        imgIcon.setImageResource(R.drawable.carrinho);
+        // Se estiver selecionado → muda cor
+        if (selecionados.contains(position)) {
+            v.setBackgroundColor(Color.parseColor("#D6EAF8")); // azul claro
+        } else {
+            v.setBackgroundColor(Color.WHITE);
+        }
 
-        return convertView;
+        return v;
     }
 }

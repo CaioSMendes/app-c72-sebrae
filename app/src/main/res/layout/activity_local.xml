@@ -233,7 +233,8 @@
                 android:textColor="#333333"
                 android:textSize="16sp"
                 android:padding="12dp"
-                android:text="Status da importação aparecerá aqui." />
+                android:text="Status da importação aparecerá aqui."
+                android:visibility="gone"/>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

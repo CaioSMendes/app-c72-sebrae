@@ -20,7 +20,7 @@ import java.util.Set;
 public class DBHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "sebraeapp.db";
-    private static final int DATABASE_VERSION = 6;
+    private static final int DATABASE_VERSION = 8;
 
     private static final String TABLE_USUARIO = "usuarios";
     private static final String COL_NOME = "nome";
@@ -78,12 +78,14 @@ public class DBHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIO);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_PATRIMONIO);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_LOCAL);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_HISTORICO);
-        onCreate(db);
+        db.execSQL("DROP TABLE IF EXISTS historico");
+        db.execSQL("DROP TABLE IF EXISTS patrimonios");
+        db.execSQL("DROP TABLE IF EXISTS locais");
+        db.execSQL("DROP TABLE IF EXISTS usuarios");
+
+        onCreate(db);  // agora SIM pode chamar, porque apagou tudo antes
     }
+
 
     //HISTÓRICO
     public void salvarHistorico(String filial, String localCodigo, String matricula,
@@ -135,6 +137,55 @@ public class DBHelper extends SQLiteOpenHelper {
                 "SELECT * FROM historico WHERE localCodigo = ? ORDER BY dataHora DESC",
                 new String[]{codigoLocal}
         );
+    }
+
+    public boolean inserirHistorico(String matricula, String codigoLocal, String tagEpc) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("matricula", matricula);
+        cv.put("localCodigo", codigoLocal);
+        cv.put("tag", tagEpc);
+        cv.put("dataHora", String.valueOf(System.currentTimeMillis()));
+
+        long res = db.insert("historico", null, cv);
+
+        return res != -1;
+    }
+
+
+    public Cursor getHistoricoPorLocal(String codigoLocal) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery(
+                "SELECT matricula, localCodigo, tag FROM historico WHERE localCodigo = ? ORDER BY id DESC",
+                new String[]{ codigoLocal }
+        );
+    }
+
+    public boolean deletarPorTag(String tag) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int linhas = db.delete("historico", "tag = ?", new String[]{ tag });
+        return linhas > 0;
+    }
+
+    public void deletarPorLocal(String localCodigo) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_HISTORICO, "localCodigo = ?", new String[]{localCodigo});
+        db.close();
+    }
+    public Cursor getDados(String localCodigo) {
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        return db.rawQuery(
+                "SELECT localCodigo, matricula, tag FROM " + TABLE_HISTORICO +
+                        " WHERE localCodigo = ? ORDER BY id DESC",
+                new String[]{ localCodigo }
+        );
+    }
+
+    public void deletarPorId(int id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_HISTORICO, "id = ?", new String[]{String.valueOf(id)});
+        db.close();
     }
 
     // USUÁRIOS

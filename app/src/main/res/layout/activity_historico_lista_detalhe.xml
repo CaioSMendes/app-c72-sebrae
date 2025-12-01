@@ -43,7 +43,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"/>
 
-    <!-- BARRA DOS 3 BOTÕES (fixa no final da tela) -->
+    <!-- BARRA DOS 3 BOTÕES + EXCLUIR -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -52,7 +52,7 @@
         android:padding="12dp"
         android:background="#FFFFFF">
 
-        <!-- ✅ BOTÃO RESUMO COM ÍCONE -->
+        <!-- BOTÃO RESUMO -->
         <LinearLayout
             android:id="@+id/btnResumo"
             android:layout_width="0dp"
@@ -82,7 +82,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- ✅ BOTÃO CONCLUIR COM ÍCONE -->
+        <!-- BOTÃO CONCLUIR -->
         <LinearLayout
             android:id="@+id/btnConcluir"
             android:layout_width="0dp"
@@ -113,7 +113,7 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- ✅ BOTÃO HISTORICO COM ÍCONE -->
+        <!-- BOTÃO INCLUIR -->
         <LinearLayout
             android:id="@+id/btnIncluir"
             android:layout_width="0dp"
@@ -138,6 +138,37 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Incluir"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 🔴 BOTÃO EXCLUIR (ESCONDIDO) -->
+        <LinearLayout
+            android:id="@+id/btnExcluir"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#D32F2F"
+            android:paddingVertical="12dp"
+            android:layout_marginStart="6dp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_delete"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Excluir"
                 android:textColor="@android:color/white"
                 android:textSize="14sp"
                 android:textStyle="bold" />
