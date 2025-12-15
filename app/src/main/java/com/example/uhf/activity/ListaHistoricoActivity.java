@@ -284,39 +284,81 @@ public class ListaHistoricoActivity extends AppCompatActivity {
     // GERA TXT + EMAIL
     private void gerarArquivoTXTComEmail() {
         try {
+            // Pasta de export
             File pasta = new File(getExternalFilesDir(null), "export");
             if (!pasta.exists()) pasta.mkdirs();
 
+            // Nome do arquivo
             File arquivo = new File(pasta, "Historico_" + localCodigoTela + ".txt");
             FileOutputStream fos = new FileOutputStream(arquivo);
 
+            int registrosPulados = 0; // contador de registros inválidos
+
             for (int i = 0; i < tags.size(); i++) {
+                String codigoBarra = tags.get(i);
+                String matriculaAtual = matriculas.get(i);
 
-                String epc = tags.get(i).replaceFirst("^0+", "");
-                if (epc.length() < 5) epc = String.format("%-5s", epc).replace(" ", "0");
-                else epc = epc.substring(0, 5);
+                // Validação: apenas números válidos e tamanhos corretos
+                if (!isNumeroValido(codigoFilial, 3) ||
+                        !isNumeroValido(localCodigoTela, 4) ||
+                        !isNumeroValido(matriculaAtual, 8)) {
+                    registrosPulados++;
+                    continue; // pula este registro
+                }
 
-                String codigoBarra = "040" + epc;
+                // 🔹 Regra para pegar os 5 primeiros dígitos da tag
+                String epcLimpo;
+                if (codigoBarra.startsWith("40") && codigoBarra.length() >= 7) {
+                    // Se começa com "40" e mais 5 dígitos
+                    epcLimpo = codigoBarra.substring(2, 7);
+                } else {
+                    // Caso contrário, pega os primeiros 5 dígitos
+                    epcLimpo = codigoBarra.length() >= 5 ? codigoBarra.substring(0, 5) : codigoBarra;
+                }
 
+                // 🔹 Adiciona prefixo "040"
+                codigoBarra = "040" + epcLimpo;
+
+                // Formata filial, local e matrícula
                 String filialFmt = String.format("%03d", Integer.parseInt(codigoFilial));
                 String localFmt = String.format("%04d", Integer.parseInt(localCodigoTela));
-                String matriculaFmt = String.format("%08d", Integer.parseInt(matriculas.get(i)));
+                String matriculaFmt = String.format("%08d", Integer.parseInt(matriculaAtual));
 
-                String linha = filialFmt + " " + localFmt + "  " + matriculaFmt +
-                        "                      " + codigoBarra + "\n";
+                // Monta a linha do arquivo
+                String linha = filialFmt + " " +
+                        localFmt + "  " +
+                        matriculaFmt + "                      " +
+                        codigoBarra + "\n";
 
                 fos.write(linha.getBytes());
             }
 
             fos.close();
-            Toast.makeText(this, "TXT gerado!", Toast.LENGTH_SHORT).show();
 
+            String msg = "TXT gerado!";
+            if (registrosPulados > 0) {
+                msg += " (" + registrosPulados + " registros inválidos foram pulados)";
+            }
+
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+
+            // Abre popup para envio de email
             abrirPopupEmail(Collections.singletonList(arquivo));
 
         } catch (Exception e) {
             Toast.makeText(this, "Erro TXT: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
+
+    // Método auxiliar para validar números e tamanho
+    private boolean isNumeroValido(String valor, int tamanhoEsperado) {
+        if (valor == null || valor.trim().isEmpty()) return false;
+        if (!valor.matches("\\d+")) return false; // apenas números
+        if (valor.length() > tamanhoEsperado) return false; // maior que o esperado
+        return true;
+    }
+
+
 
     // ----------------------------
     // MONTA RESUMO AGRUPADO (TAG -> DESCRIÇÃO/CONTAGEM)

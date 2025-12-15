@@ -83,7 +83,9 @@ public class ConsultaCodBarraActivity extends AppCompatActivity {
 
         toneGen = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
 
+        //adapter = new SimpleTagAdapter(this, listaCodigos, dbHelper);
         adapter = new SimpleTagAdapter(this, listaCodigos, dbHelper);
+
         listViewCodigos.setAdapter(adapter);
 
         txtInfoUser.setText(codigoFilial + " | " + codigoLocal + " | " + chapaFuncionario);

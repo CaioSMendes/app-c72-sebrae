@@ -21,7 +21,6 @@ public class SimpleTagAdapter extends BaseAdapter {
     private List<String> tagList;
     private DBHelper db;
 
-    // 🔥 CACHE: DESCRICAO POR TAG
     private Map<String, String> cacheDescricao = new HashMap<>();
 
     public SimpleTagAdapter(Context context, List<String> tagList, DBHelper db) {
@@ -69,31 +68,28 @@ public class SimpleTagAdapter extends BaseAdapter {
         }
 
         String tag = tagList.get(position);
-        holder.txtTag.setText(tag);
 
-        // 🔎 SE JÁ TEM NO CACHE → NUNCA MAIS BUSCA NO BANCO
+        // NÃO reformatar aqui: a tag já vem normalizada (6 dígitos)
+        String tagExibir = tag;
+        holder.txtTag.setText(tagExibir);
+
+        // Cache de descrição
         if (cacheDescricao.containsKey(tag)) {
             aplicarResultado(holder, cacheDescricao.get(tag));
             return convertView;
         }
 
-        // ⏳ PRIMEIRA VEZ → MOSTRA “carregando” só 1x
         holder.txtItemDescricao.setText("Carregando...");
         holder.imgPatrimonio.setImageResource(R.drawable.ic_loading);
 
-        // 🌟 BUSCA NO BANCO APENAS UMA VEZ
+        // Busca no banco usando exatamente o que está sendo exibido
         new Thread(() -> {
-            String fullTag = "040" + tag;
+            String fullTag = tagExibir;
             String resultado = db.getDescricaoPorTag(fullTag);
 
-            // Armazena no cache
             cacheDescricao.put(tag, resultado);
-
-            // Atualiza a UI de forma segura
             if (context instanceof android.app.Activity) {
-                ((android.app.Activity) context).runOnUiThread(() -> {
-                    aplicarResultado(holder, resultado);
-                });
+                ((android.app.Activity) context).runOnUiThread(() -> aplicarResultado(holder, resultado));
             }
         }).start();
 
@@ -102,13 +98,9 @@ public class SimpleTagAdapter extends BaseAdapter {
 
     private void aplicarResultado(ViewHolder holder, String resultado) {
         if (resultado != null) {
-            String texto = resultado.length() > 25 ?
-                    resultado.substring(0, 25) + "..." :
-                    resultado;
-
+            String texto = resultado.length() > 25 ? resultado.substring(0, 25) + "..." : resultado;
             holder.txtItemDescricao.setText(texto);
             holder.imgPatrimonio.setImageResource(R.drawable.ic_ativo_pat);
-
         } else {
             holder.txtItemDescricao.setText("DESCONHECIDO");
             holder.imgPatrimonio.setImageResource(R.drawable.ic_desconhecido);

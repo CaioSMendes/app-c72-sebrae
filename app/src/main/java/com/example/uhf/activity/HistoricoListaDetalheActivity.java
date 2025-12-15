@@ -1,9 +1,7 @@
-//ESSE AQUI E UM TESTE E NAO FUNCINOU EXCLUIR DPS
 package com.example.uhf.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Toast;
@@ -35,42 +33,44 @@ public class HistoricoListaDetalheActivity extends AppCompatActivity {
     private LinearLayout btnResumo, btnConcluir, btnIncluir;
     private ListView listHistoricoLocais;
 
-    // RECEBIDOS DE OUTRA ACTIVITY
+    // ---- RECEBIDOS DE OUTRA ACTIVITY ----
     private ArrayList<String> listaTags = new ArrayList<>();
-    private String codigoFilial, codigoLocal, chapaFuncionario;
+    private String codigoFilial = "0";
+    private String codigoLocal = "0";
+    private String chapaFuncionario = "0";
+
     private Object userBanco, localBanco;
+
+    // 🔥 VARIÁVEL QUE FALTAVA — define se é RFID ou código de barras
+    private boolean modoRfid = true; // altere conforme sua lógica real
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_historico_lista_detalhe);
 
-        // ---- BOTÕES ----
         btnResumo = findViewById(R.id.btnResumo);
         btnConcluir = findViewById(R.id.btnConcluir);
         btnIncluir = findViewById(R.id.btnIncluir);
-
         listHistoricoLocais = findViewById(R.id.listHistoricoLocais);
 
-        // LIGA OS BOTÕES NAS FUNÇÕES ----
+        // eventos
         btnResumo.setOnClickListener(v -> abrirResumo());
         btnConcluir.setOnClickListener(v -> gerarArquivoTXT());
-        btnIncluir.setOnClickListener(v -> Toast.makeText(this, "Adicionar item (implementar)", Toast.LENGTH_SHORT).show());
+        btnIncluir.setOnClickListener(v ->
+                Toast.makeText(this, "Adicionar item (implementar)", Toast.LENGTH_SHORT).show()
+        );
 
-        // RECEBE DADOS SE TIVER
         receberDados();
     }
 
     private void receberDados() {
         Intent i = getIntent();
 
-        if (i.hasExtra("tags")) {
-            listaTags = i.getStringArrayListExtra("tags");
-        }
-
-        codigoFilial = i.getStringExtra("codigoFilial");
-        codigoLocal = i.getStringExtra("codigoLocal");
-        chapaFuncionario = i.getStringExtra("chapaFuncionario");
+        if (i.hasExtra("tags")) listaTags = i.getStringArrayListExtra("tags");
+        if (i.hasExtra("codigoFilial")) codigoFilial = i.getStringExtra("codigoFilial");
+        if (i.hasExtra("codigoLocal")) codigoLocal = i.getStringExtra("codigoLocal");
+        if (i.hasExtra("chapaFuncionario")) chapaFuncionario = i.getStringExtra("chapaFuncionario");
     }
 
     // -------------------------------------------------------------------
@@ -100,48 +100,44 @@ public class HistoricoListaDetalheActivity extends AppCompatActivity {
 
     private void gerarArquivoTXT() {
         try {
-            // 1️⃣ Pasta de export
+
             File pasta = new File(getExternalFilesDir(null), "export");
             if (!pasta.exists()) pasta.mkdirs();
 
-            // 2️⃣ Nome do arquivo no formato desejado: <codigoLocal>_dd-MM-yy_HH-mm.txt
             SimpleDateFormat sdfDataHora = new SimpleDateFormat("dd-MM-yy_HH-mm");
-            String dataHora = sdfDataHora.format(new Date());
-            String nomeArquivo = codigoLocal + "_" + dataHora + ".txt";
+            String nomeArquivo = codigoLocal + "_" + sdfDataHora.format(new Date()) + ".txt";
 
             File arquivo = new File(pasta, nomeArquivo);
-
-            // 3️⃣ Criar conteúdo do arquivo
             FileOutputStream fos = new FileOutputStream(arquivo);
+
             for (String epc : listaTags) {
 
-                String epcSemZero = epc.replaceFirst("^0+", "");
-                String cincoDigitos = epcSemZero.length() >= 5 ? epcSemZero.substring(0, 5) : epcSemZero;
-                while (cincoDigitos.length() < 5) cincoDigitos += "0";
+                // 🔥 Usa a tag exatamente como veio
+                String codigoBarraFinal = epc;
 
-                String codigoBarra = "040" + cincoDigitos;
-
+                // formata campos
                 String filialFmt = String.format("%03d", Integer.parseInt(codigoFilial));
                 String localFmt = String.format("%04d", Integer.parseInt(codigoLocal));
                 String matriculaFmt = String.format("%08d", Integer.parseInt(chapaFuncionario));
 
-                String linha = filialFmt + " " + localFmt + "  " + matriculaFmt +
-                        "                      " + codigoBarra + "\n";
+                String linha = filialFmt + " " + localFmt + "  " +
+                        matriculaFmt + "                      " +
+                        codigoBarraFinal + "\n";
 
                 fos.write(linha.getBytes());
             }
+
             fos.close();
 
-            // 4️⃣ Mostrar mensagem de sucesso
-            Toast.makeText(this, "TXT gerado:\n" + arquivo.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Arquivo gerado:\n" + arquivo.getAbsolutePath(), Toast.LENGTH_LONG).show();
 
-            // 5️⃣ Mostrar popup para envio de e-mail (mesmo arquivo)
             mostrarPopupEnvio(arquivo);
 
         } catch (Exception e) {
             Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
+
 
     // -------------------------------------------------------------------
     // ------------------------ POPUP DE ENVIO ---------------------------
@@ -152,21 +148,21 @@ public class HistoricoListaDetalheActivity extends AppCompatActivity {
         inputEmail.setHint("Digite o e-mail do destinatário");
 
         new android.app.AlertDialog.Builder(this)
-                .setTitle("Ação Concluída")
+                .setTitle("Ação concluída")
                 .setMessage("Deseja enviar o arquivo por e-mail?")
                 .setView(inputEmail)
                 .setPositiveButton("Enviar", (dialog, which) -> {
-                    String emailDestino = inputEmail.getText().toString().trim();
-                    if (!emailDestino.isEmpty()) enviarArquivoPorEmail(arquivo, emailDestino);
-                    else Toast.makeText(this, "E-mail não informado!", Toast.LENGTH_SHORT).show();
+                    String email = inputEmail.getText().toString().trim();
+                    if (!email.isEmpty()) enviarArquivoPorEmail(arquivo, email);
+                    else Toast.makeText(this, "Digite um e-mail válido!", Toast.LENGTH_SHORT).show();
                 })
-                .setNegativeButton("Concluir", (dialog, which) -> dialog.dismiss())
+                .setNegativeButton("Fechar", (dialog, which) -> dialog.dismiss())
                 .setCancelable(false)
                 .show();
     }
 
     // -------------------------------------------------------------------
-    // --------------------- ENVIO DE EMAIL SMTP -------------------------
+    // --------------------- ENVIO DE E-MAIL SMTP ------------------------
     // -------------------------------------------------------------------
 
     private void enviarArquivoPorEmail(File arquivo, String destinatario) {
@@ -191,7 +187,7 @@ public class HistoricoListaDetalheActivity extends AppCompatActivity {
 
                 MimeMessage message = new MimeMessage(session);
                 message.setFrom(new InternetAddress(usuario));
-                message.setRecipients(MimeMessage.RecipientType.TO, InternetAddress.parse(destinatario));
+                message.setRecipients(MimeMessage.RecipientType.TO, destinatario);
                 message.setSubject("Inventário RFID");
 
                 MimeBodyPart texto = new MimeBodyPart();
@@ -206,15 +202,17 @@ public class HistoricoListaDetalheActivity extends AppCompatActivity {
                 multipart.addBodyPart(anexo);
 
                 message.setContent(multipart);
+
                 Transport.send(message);
 
                 runOnUiThread(() ->
-                        Toast.makeText(this, "E-mail enviado com sucesso!", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "E-mail enviado!", Toast.LENGTH_LONG).show()
                 );
 
             } catch (Exception e) {
                 runOnUiThread(() ->
-                        Toast.makeText(this, "Erro ao enviar e-mail: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "Erro ao enviar e-mail: " + e.getMessage(),
+                                Toast.LENGTH_LONG).show()
                 );
             }
         }).start();

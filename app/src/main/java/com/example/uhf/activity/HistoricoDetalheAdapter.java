@@ -78,9 +78,18 @@ public class HistoricoDetalheAdapter extends BaseAdapter {
 
         txtLocal.setText(locais.get(position));
         txtMatricula.setText(matriculas.get(position));
-        txtTag.setText(tags.get(position));
 
-        // Se estiver selecionado → muda cor
+        // Tag que veio do banco (você está salvando 6 dígitos na ListaHistoricoActivity)
+        String tagBruta = tags.get(position);
+
+        // Se quiser exibir exatamente os 6 dígitos salvos:
+        String tagExibir = tagBruta;
+
+        // OU, se quiser mostrar só os 5 primeiros (os mesmos usados no TXT):
+        // String tagExibir = tagBruta.length() >= 5 ? tagBruta.substring(0, 5) : tagBruta;
+
+        txtTag.setText(tagExibir);
+
         if (selecionados.contains(position)) {
             v.setBackgroundColor(Color.parseColor("#D6EAF8")); // azul claro
         } else {

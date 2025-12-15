@@ -1,5 +1,7 @@
 package com.example.uhf.activity;
 
+import static androidx.fragment.app.FragmentManager.TAG;
+
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -56,13 +58,13 @@ public class ConsultaTagActivity extends AppCompatActivity {
     private RFIDWithUHFUART mReader;
     private BarcodeDecoder barcodeDecoder;
 
-    // Estados de controle otimizados
+    // Estados de controle
     private volatile boolean isReadingRFID = false;
     private volatile boolean isReading2D = false;
     private volatile boolean modoRfid = true;
     private volatile boolean modo2D = false;
 
-    // Threads dedicadas e isoladas
+    // Threads
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Handler rfidHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService rfidExecutor = Executors.newSingleThreadExecutor();
@@ -104,7 +106,6 @@ public class ConsultaTagActivity extends AppCompatActivity {
         localBanco = dbHelper.buscarLocalPorCodigo(codigoLocal);
         userBanco = dbHelper.buscarUsuarioPorMatricula(chapaFuncionario);
 
-        // Inicializar views
         tvTagCount = findViewById(R.id.tvTagCount);
         listViewTags = findViewById(R.id.listViewTags);
         btnLerTags = findViewById(R.id.btnLerTags);
@@ -133,10 +134,7 @@ public class ConsultaTagActivity extends AppCompatActivity {
     }
 
     private void inicializarLeitores() {
-        // RFID em background
         rfidExecutor.execute(() -> inicializarRFID());
-
-        // Barcode em background separado
         barcodeExecutor.execute(() -> inicializarBarcode2D());
     }
 
@@ -167,15 +165,16 @@ public class ConsultaTagActivity extends AppCompatActivity {
     private void configurarCallback2D() {
         barcodeDecoder.setDecodeCallback(barcodeEntity -> {
             if (barcodeEntity.getResultCode() != BarcodeDecoder.DECODE_SUCCESS) return;
-
             String code = barcodeEntity.getBarcodeData();
-            rfidExecutor.execute(() -> adicionarTagSegura(code));
+            Log.d(TAG, "Código 2D lido: " + code);
+            String exibicao = normalizarCodigo(code);
+            rfidExecutor.execute(() -> adicionarTagSegura(exibicao));
         });
     }
 
     private void configurarListeners() {
-        rbLoop.setOnCheckedChangeListener((b, c) -> {/* modoSingle = false; */});
-        rbSingle.setOnCheckedChangeListener((b, c) -> {/* modoSingle = true; */});
+        rbLoop.setOnCheckedChangeListener((b, c) -> {});
+        rbSingle.setOnCheckedChangeListener((b, c) -> {});
 
         btnLerTags.setOnClickListener(v -> alternarLeituraPrincipal());
         btnLimparTags.setOnClickListener(v -> limparTags());
@@ -184,7 +183,6 @@ public class ConsultaTagActivity extends AppCompatActivity {
         btnConcluir.setOnClickListener(v -> gerarArquivoTXT());
         btnHistorico.setOnClickListener(v -> abrirHistorico());
 
-        // Botões de modo - ISOLAMENTO TOTAL
         btnRfid.setOnClickListener(v -> trocarModo(true));
         btnCodBar.setOnClickListener(v -> trocarModo(false));
     }
@@ -197,17 +195,13 @@ public class ConsultaTagActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-
     private void trocarModo(boolean paraRfid) {
-        if (paraRfid) {
-            modoRfid = true;
-            modo2D = false;
-            pararLeitura2D();
-        } else {
-            modoRfid = false;
-            modo2D = true;
-            pararLeituraRFID();
-        }
+        modoRfid = paraRfid;
+        modo2D = !paraRfid;
+
+        if (modoRfid) pararLeitura2D();
+        else pararLeituraRFID();
+
         atualizarEstadoBotoes();
     }
 
@@ -221,7 +215,7 @@ public class ConsultaTagActivity extends AppCompatActivity {
         }
     }
 
-    // ========== RFID OTIMIZADO ==========
+    // ===== RFID =====
     private void iniciarLeituraRFID() {
         if (isReadingRFID) return;
         isReadingRFID = true;
@@ -249,7 +243,8 @@ public class ConsultaTagActivity extends AppCompatActivity {
                     UHFTAGInfo tagInfo = mReader.readTagFromBuffer();
                     if (tagInfo != null) {
                         String epc = tagInfo.getEPC();
-                        adicionarTagSegura(formatarEPCExibicao(epc));
+                        String exibicao = normalizarCodigo(epc);
+                        adicionarTagSegura(exibicao);
                         toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
                     }
                 } catch (Exception e) {
@@ -276,7 +271,7 @@ public class ConsultaTagActivity extends AppCompatActivity {
         });
     }
 
-    // ========== BARCODE OTIMIZADO ==========
+    // ===== BARCODE 2D =====
     private void iniciarLeitura2D() {
         if (isReading2D || barcodeDecoder == null) return;
         isReading2D = true;
@@ -302,39 +297,54 @@ public class ConsultaTagActivity extends AppCompatActivity {
         }
     }
 
-    // ========== UTILITÁRIOS THREAD-SAFE ==========
+    // ===== REGRA ÚNICA PARA EXIBIÇÃO / TXT =====
+    private String normalizarCodigo(String valor) {
+        if (valor == null) return "";
+
+        String epc = valor.trim();
+
+        // remove prefixo 040 ou 40
+        if (epc.startsWith("040")) {
+            epc = epc.substring(3);
+        } else if (epc.startsWith("40")) {
+            epc = epc.substring(2);
+        }
+
+        // pega até 6 caracteres
+        String resultado = epc.length() >= 6 ? epc.substring(0, 6) : epc;
+
+        // completa com zeros à direita até 6
+        while (resultado.length() < 6) {
+            resultado += "0";
+        }
+
+        return resultado;
+    }
+
+    // ===== UTILITÁRIOS THREAD-SAFE =====
     private synchronized void adicionarTagSegura(String tag) {
         long agora = System.currentTimeMillis();
-        if (agora - ultimoUpdateUI < 100) return;  // throttle de UI
+        if (agora - ultimoUpdateUI < 100) return;
         ultimoUpdateUI = agora;
 
         if (!tagsLidas.contains(tag) && !listaTags.contains(tag)) {
-            tagsLidas.add(tag);
-            listaTags.add(tag);
+            tagsLidas.add(0, tag);
+            listaTags.add(0, tag);
 
-            //SALVA NO HISTÓRICO AUTOMATICAMENTE
             dbHelper.salvarHistorico(
-                    codigoFilial,      // → filial atual selecionada
-                    codigoLocal,       // → local atual selecionado
-                    chapaFuncionario,  // → matrícula do funcionário
-                    tag,               // → tag lida
-                    modoRfid ? "RFID" : "CODBARRAS"  // tipo da leitura
+                    codigoFilial,
+                    codigoLocal,
+                    chapaFuncionario,
+                    tag,
+                    modoRfid ? "RFID" : "CODBARRAS"
             );
 
-            // Atualiza UI
             mainHandler.post(() -> {
                 adapter.notifyDataSetChanged();
                 tvTagCount.setText("Tags lidas: " + listaTags.size());
+                listViewTags.smoothScrollToPosition(0);
             });
         }
-    }
-
-
-    private String formatarEPCExibicao(String epc) {
-        String semZero = epc.replaceFirst("^0+", "");
-        String resultado = semZero.length() >= 8 ? semZero.substring(0, 8) : semZero;
-        while (resultado.length() < 8) resultado += "0";
-        return resultado;
     }
 
     private void atualizarEstadoBotoes() {
@@ -394,7 +404,6 @@ public class ConsultaTagActivity extends AppCompatActivity {
                 }).show();
     }
 
-    // Mantém os métodos abrirResumo() e gerarArquivoTXT() originais...
     private void abrirResumo() {
         if (listaTags.isEmpty()) {
             Toast.makeText(this, "Nenhuma tag lida!", Toast.LENGTH_SHORT).show();
@@ -422,49 +431,66 @@ public class ConsultaTagActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
+    // ===== GERAÇÃO DO TXT USANDO A MESMA REGRA =====
     private void gerarArquivoTXT() {
         try {
-            // 1️⃣ Pasta de export
             File pasta = new File(getExternalFilesDir(null), "export");
             if (!pasta.exists()) pasta.mkdirs();
 
-            // 2️⃣ Nome do arquivo no formato desejado: <codigoLocal>_dd-MM-yy_HH-mm.txt
             SimpleDateFormat sdfDataHora = new SimpleDateFormat("dd-MM-yy_HH-mm");
             String dataHora = sdfDataHora.format(new Date());
             String nomeArquivo = codigoLocal + "_" + dataHora + ".txt";
 
             File arquivo = new File(pasta, nomeArquivo);
 
-            // 3️⃣ Criar conteúdo do arquivo
             FileOutputStream fos = new FileOutputStream(arquivo);
-            for (String epc : listaTags) {
 
-                String epcSemZero = epc.replaceFirst("^0+", "");
-                String cincoDigitos = epcSemZero.length() >= 5 ? epcSemZero.substring(0, 5) : epcSemZero;
-                while (cincoDigitos.length() < 5) cincoDigitos += "0";
+            for (String epcTela : listaTags) {
 
-                String codigoBarra = "040" + cincoDigitos;
+                // epcTela é o que está na tela (já normalizado com 6 dígitos: "123456")
+                String epcNormalizado = normalizarCodigo(epcTela); // garante 6
+
+                // ➤ Usa só os 5 primeiros dígitos para o código de barras do arquivo
+                String epc5 = epcNormalizado.substring(0, 5);      // "12345"
+
+                // ➤ Monta código final com prefixo 040 + 5 dígitos
+                String codigoBarraFinal = "040" + epc5;             // "04012345"
+
+                // valida filial/local/matrícula
+                if (!isNumeroValido(codigoFilial, 3) ||
+                        !isNumeroValido(codigoLocal, 4) ||
+                        !isNumeroValido(chapaFuncionario, 8)) {
+                    continue;
+                }
 
                 String filialFmt = String.format("%03d", Integer.parseInt(codigoFilial));
                 String localFmt = String.format("%04d", Integer.parseInt(codigoLocal));
                 String matriculaFmt = String.format("%08d", Integer.parseInt(chapaFuncionario));
 
-                String linha = filialFmt + " " + localFmt + "  " + matriculaFmt +
-                        "                      " + codigoBarra + "\n";
+                String linha = filialFmt + " " +
+                        localFmt + "  " +
+                        matriculaFmt + "                      " +
+                        codigoBarraFinal + "\n";
 
                 fos.write(linha.getBytes());
             }
+
             fos.close();
 
-            // 4️⃣ Mostrar mensagem de sucesso
             Toast.makeText(this, "TXT gerado:\n" + arquivo.getAbsolutePath(), Toast.LENGTH_LONG).show();
-
-            // 5️⃣ Mostrar popup para envio de e-mail (mesmo arquivo)
             mostrarPopupEnvio(arquivo);
 
         } catch (Exception e) {
             Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+
+    private boolean isNumeroValido(String valor, int tamanhoEsperado) {
+        if (valor == null || valor.trim().isEmpty()) return false;
+        if (!valor.matches("\\d+")) return false;
+        if (valor.length() > tamanhoEsperado) return false;
+        return true;
     }
 
     private void mostrarPopupEnvio(File arquivo) {
@@ -501,7 +527,7 @@ public class ConsultaTagActivity extends AppCompatActivity {
                 Session session = Session.getInstance(props, new Authenticator() {
                     @Override
                     protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(usuario, senha);  // ✅ CORRETO
+                        return new PasswordAuthentication(usuario, senha);
                     }
                 });
 
