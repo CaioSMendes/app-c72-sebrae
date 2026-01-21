@@ -303,23 +303,23 @@ public class ConsultaTagActivity extends AppCompatActivity {
 
         String epc = valor.trim();
 
-        // remove prefixo 040 ou 40
+        // Remove prefixos conhecidos
         if (epc.startsWith("040")) {
             epc = epc.substring(3);
         } else if (epc.startsWith("40")) {
             epc = epc.substring(2);
         }
 
-        // pega até 6 caracteres
-        String resultado = epc.length() >= 6 ? epc.substring(0, 6) : epc;
+        // Remove zeros à esquerda
+        epc = epc.replaceFirst("^0+", "");
 
-        // completa com zeros à direita até 6
-        while (resultado.length() < 6) {
-            resultado += "0";
-        }
+        // 🔥 REMOVE ZEROS À DIREITA (padding RFID)
+        epc = epc.replaceFirst("0+$", "");
 
-        return resultado;
+        return epc.isEmpty() ? "" : epc;
     }
+
+
 
     // ===== UTILITÁRIOS THREAD-SAFE =====
     private synchronized void adicionarTagSegura(String tag) {
@@ -442,19 +442,27 @@ public class ConsultaTagActivity extends AppCompatActivity {
             String nomeArquivo = codigoLocal + "_" + dataHora + ".txt";
 
             File arquivo = new File(pasta, nomeArquivo);
-
             FileOutputStream fos = new FileOutputStream(arquivo);
 
             for (String epcTela : listaTags) {
 
-                // epcTela é o que está na tela (já normalizado com 6 dígitos: "123456")
-                String epcNormalizado = normalizarCodigo(epcTela); // garante 6
+                if (epcTela == null || epcTela.trim().isEmpty()) {
+                    Log.w("TXT", "EPC vazio ignorado");
+                    continue;
+                }
 
-                // ➤ Usa só os 5 primeiros dígitos para o código de barras do arquivo
-                String epc5 = epcNormalizado.substring(0, 5);      // "12345"
+                String epcNormalizado = normalizarCodigo(epcTela);
 
-                // ➤ Monta código final com prefixo 040 + 5 dígitos
-                String codigoBarraFinal = "040" + epc5;             // "04012345"
+                // 🚨 VALIDAÇÃO CRÍTICA
+                if (epcNormalizado.length() < 5) {
+                    Log.w("TXT", "EPC inválido (menor que 5): " + epcNormalizado);
+                    continue;
+                }
+
+                // Usa apenas os 5 primeiros dígitos
+                String epc5 = epcNormalizado.substring(0, 5);
+
+                String codigoBarraFinal = "040" + epc5;
 
                 // valida filial/local/matrícula
                 if (!isNumeroValido(codigoFilial, 3) ||
@@ -467,23 +475,31 @@ public class ConsultaTagActivity extends AppCompatActivity {
                 String localFmt = String.format("%04d", Integer.parseInt(codigoLocal));
                 String matriculaFmt = String.format("%08d", Integer.parseInt(chapaFuncionario));
 
-                String linha = filialFmt + " " +
-                        localFmt + "  " +
-                        matriculaFmt + "                      " +
-                        codigoBarraFinal + "\n";
+                String linha =
+                        filialFmt + " " +
+                                localFmt + "  " +
+                                matriculaFmt + "                      " +
+                                codigoBarraFinal + "\n";
 
                 fos.write(linha.getBytes());
             }
 
             fos.close();
 
-            Toast.makeText(this, "TXT gerado:\n" + arquivo.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this,
+                    "TXT gerado:\n" + arquivo.getAbsolutePath(),
+                    Toast.LENGTH_LONG).show();
+
             mostrarPopupEnvio(arquivo);
 
         } catch (Exception e) {
-            Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("TXT", "Erro ao gerar arquivo", e);
+            Toast.makeText(this,
+                    "Erro: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
         }
     }
+
 
 
     private boolean isNumeroValido(String valor, int tamanhoEsperado) {
