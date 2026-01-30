@@ -168,6 +168,12 @@ public class ConsultaTagActivity extends AppCompatActivity {
             String code = barcodeEntity.getBarcodeData();
             Log.d(TAG, "Código 2D lido: " + code);
             String exibicao = normalizarCodigo(code);
+            // 🚫 Se não houver código real, não registra nada
+            if (exibicao == null || exibicao.trim().isEmpty()) {
+                return;
+            }
+            // 🔊🔥 FAZ O BEEP IGUAL AO RFID
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
             rfidExecutor.execute(() -> adicionarTagSegura(exibicao));
         });
     }
@@ -243,7 +249,16 @@ public class ConsultaTagActivity extends AppCompatActivity {
                     UHFTAGInfo tagInfo = mReader.readTagFromBuffer();
                     if (tagInfo != null) {
                         String epc = tagInfo.getEPC();
-                        String exibicao = normalizarCodigo(epc);
+                        String normalized = normalizarCodigo(epc);
+
+                        // ❗ Só continua se tiver pelo menos 5 dígitos
+                        if (normalized == null || normalized.length() < 5) {
+                            return;
+                        }
+
+                        // ❗ Apenas os 5 primeiros dígitos
+                        String exibicao = normalized.substring(0, 5);
+
                         adicionarTagSegura(exibicao);
                         toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
                     }
@@ -257,6 +272,7 @@ public class ConsultaTagActivity extends AppCompatActivity {
             }
         });
     }
+
 
     private void pararLeituraRFID() {
         isReadingRFID = false;
@@ -303,31 +319,46 @@ public class ConsultaTagActivity extends AppCompatActivity {
 
         String epc = valor.trim();
 
-        // Remove prefixos conhecidos
-        if (epc.startsWith("040")) {
+        if (epc.equalsIgnoreCase("null") || epc.isEmpty()) return "";
+
+        // Remove prefixos conhecidos do leitor
+        if (epc.startsWith("040") && epc.length() > 3) {
             epc = epc.substring(3);
-        } else if (epc.startsWith("40")) {
+        } else if (epc.startsWith("40") && epc.length() > 2) {
             epc = epc.substring(2);
         }
 
-        // Remove zeros à esquerda
+        // ❗ REMOVE SOMENTE ZEROS À ESQUERDA
         epc = epc.replaceFirst("^0+", "");
 
-        // 🔥 REMOVE ZEROS À DIREITA (padding RFID)
-        epc = epc.replaceFirst("0+$", "");
+        // ❗ NÃO REMOVE ZEROS À DIREITA!
 
-        return epc.isEmpty() ? "" : epc;
+        if (epc.isEmpty()) return "";
+
+        return epc;
     }
 
 
 
     // ===== UTILITÁRIOS THREAD-SAFE =====
     private synchronized void adicionarTagSegura(String tag) {
+
+        if (tag == null) return;
+        tag = tag.trim();
+        if (tag.isEmpty() || tag.equalsIgnoreCase("null")) return;
+
+        // ❗ NÃO EXIBIR TAGS QUE CONTENHAM LETRAS
+        if (!tag.matches("\\d+")) {
+            Log.w("RFID", "Tag ignorada na exibição (contém letras): " + tag);
+            return; // <-- NÃO EXIBE, NÃO SALVA, NÃO MOSTRA NA TELA
+        }
+
         long agora = System.currentTimeMillis();
         if (agora - ultimoUpdateUI < 100) return;
         ultimoUpdateUI = agora;
 
         if (!tagsLidas.contains(tag) && !listaTags.contains(tag)) {
+
             tagsLidas.add(0, tag);
             listaTags.add(0, tag);
 
@@ -346,6 +377,7 @@ public class ConsultaTagActivity extends AppCompatActivity {
             });
         }
     }
+
 
     private void atualizarEstadoBotoes() {
         mainHandler.post(() -> {
