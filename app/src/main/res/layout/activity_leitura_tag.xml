@@ -1,0 +1,156 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layout_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="@android:color/white">
+
+    <!-- ListView ocupa a área acima do contador e RadioGroup -->
+    <ListView
+        android:id="@+id/lvTags"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_alignParentTop="true"
+        android:layout_above="@id/tvTagCount"
+        android:divider="#CCCCCC"
+        android:dividerHeight="1dp"
+        android:background="#F9F9F9" />
+
+    <!-- TextView de contagem de tags -->
+    <TextView
+        android:id="@+id/tvTagCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tags lidas: 0"
+        android:textSize="16sp"
+        android:textColor="#333333"
+        android:layout_above="@id/rgMode"
+        android:layout_marginBottom="8dp" />
+
+    <!-- RadioGroup acima dos botões -->
+    <RadioGroup
+        android:id="@+id/rgMode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_above="@id/llBotoes"
+        android:layout_marginBottom="8dp">
+
+        <RadioButton
+            android:id="@+id/rbLoop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Auto" />
+
+        <RadioButton
+            android:id="@+id/rbSingle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Single"
+            android:layout_marginStart="24dp" />
+    </RadioGroup>
+
+    <!-- Botões fixos na parte inferior -->
+    <LinearLayout
+        android:id="@+id/llBotoes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_alignParentBottom="true"
+        android:weightSum="3"
+        android:gravity="center"
+        android:layout_marginBottom="0dp">
+
+        <!-- Botão Confirmar -->
+        <LinearLayout
+            android:id="@+id/btnAcaoDefault"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginEnd="4dp"
+            android:padding="4dp"
+            android:background="@drawable/bg_button_confirmar"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/btnAcaoIcon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/btnAcaoText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Confirmar\nRetirada"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Botão Limpar -->
+        <LinearLayout
+            android:id="@+id/btnClearTags"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:padding="4dp"
+            android:background="@drawable/bg_button_parar">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_clean"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Limpar\nTags"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Botão Iniciar / Parar Leitura -->
+        <LinearLayout
+            android:id="@+id/btnStartInventory"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginStart="4dp"
+            android:padding="4dp"
+            android:background="@drawable/bg_button_limpar">
+
+            <ImageView
+                android:id="@+id/imgInventory"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_sensor"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/txtInventory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="Iniciar\nLeitura"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>
