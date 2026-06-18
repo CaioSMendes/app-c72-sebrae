@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cabeçalho dos grupos no ExpandableList de categorias -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="52dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="12dp"
+    android:background="#EFEFF4">
+
+    <!-- Ícone de categoria -->
+    <ImageView
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/ic_categoria"
+        android:scaleType="fitCenter"
+        android:layout_marginEnd="10dp" />
+
+    <!-- Nome da descrição/categoria -->
+    <TextView
+        android:id="@+id/txtGrupoDescricao"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#212121"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <!-- Badge contador lidos/total -->
+    <TextView
+        android:id="@+id/txtGrupoContador"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_badge_azul" />
+
+    <!-- Seta expand/collapse -->
+    <ImageView
+        android:id="@+id/imgSetaGrupo"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@android:drawable/arrow_down_float"
+        android:scaleType="fitCenter" />
+
+</LinearLayout>

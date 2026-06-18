@@ -17,12 +17,6 @@ public class SyncApiHelper {
 
     private static final String TAG = "SyncApiHelper";
 
-    private static final String ENDPOINT_SUFFIX =
-            "5ab32a7c-c8c1-43d3-b74c-1e12111e3161/execute";
-
-    private static final String API_KEY =
-            "26a979bf-63dc-46d1-b138-6af25138398a";
-
     public interface ProgressCallback {
         void onProgress(int processados, int total, int salvos, int duplicados, int erros);
     }
@@ -42,13 +36,13 @@ public class SyncApiHelper {
                                          ProgressCallback progressCallback) {
         SyncResult result = new SyncResult();
 
-        String baseUrl = SettingsActivity.getBaseUrl(context);
-        if (baseUrl == null || baseUrl.isEmpty()) {
+        // getBaseUrl() já retorna a URL completa com o endpoint do ambiente ativo
+        String fullUrl = SettingsActivity.getBaseUrl(context);
+        if (fullUrl == null || fullUrl.isEmpty()) {
             result.mensagem = "Base URL não configurada. Acesse Configurações.";
             return result;
         }
-        if (!baseUrl.endsWith("/")) baseUrl += "/";
-        String fullUrl = baseUrl + ENDPOINT_SUFFIX;
+
         Log.d(TAG, "POST → " + fullUrl);
 
         try {
@@ -56,15 +50,16 @@ public class SyncApiHelper {
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("apiKey", API_KEY);
+            conn.setRequestProperty("apiKey", SettingsActivity.getApiKey(context));
             conn.setDoOutput(true);
             conn.setConnectTimeout(15_000);
             conn.setReadTimeout(60_000);
 
+            // Parâmetros vindos das SharedPreferences
             JSONObject body = new JSONObject();
-            body.put("CODCOLIGADA", 1);
-            body.put("CODFILIAL",   1);
-            body.put("ATIVO",       1);
+            body.put("CODCOLIGADA", SettingsActivity.getCodColigada(context));
+            body.put("CODFILIAL",   SettingsActivity.getCodFilial(context));
+            body.put("ATIVO",       SettingsActivity.getAtivo(context));
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(body.toString().getBytes("UTF-8"));
@@ -109,15 +104,13 @@ public class SyncApiHelper {
                     try {
                         JSONObject item = items.getJSONObject(i);
 
-                        // Lê campos — suporta string OU número na API
-                        String patrimonio  = lerCampoComoString(item, "PATRIMONIO").trim();
-                        String codigoBarra = lerCampoComoString(item, "CODIGOBARRA").trim();
-                        String descricao   = lerCampoComoString(item, "DESCRICAO").trim();
+                        String patrimonio    = lerCampoComoString(item, "PATRIMONIO").trim();
+                        String codigoBarra   = lerCampoComoString(item, "CODIGOBARRA").trim();
+                        String descricao     = lerCampoComoString(item, "DESCRICAO").trim();
                         String dataAquisicao = optStringSafe(item, "DATAAQUISICAO");
-                        String codLocal    = lerCampoComoString(item, "CODLOCAL");
-                        String nomeLocal   = optStringSafe(item, "NOME_LOCAL");
+                        String codLocal      = lerCampoComoString(item, "CODLOCAL");
+                        String nomeLocal     = optStringSafe(item, "NOME_LOCAL");
 
-                        // Valor: sempre vem como número double
                         String valorAquisicao = "";
                         if (!item.isNull("VALOR_AQUISICAO")) {
                             double v = item.optDouble("VALOR_AQUISICAO", -1);
@@ -190,14 +183,11 @@ public class SyncApiHelper {
     private static String lerCampoComoString(JSONObject obj, String key) {
         if (!obj.has(key) || obj.isNull(key)) return "";
 
-        // Tenta como string primeiro
         String strVal = obj.optString(key, "").trim();
 
-        // Se optString retornou "null" ou vazio, tenta como número
         if (strVal.isEmpty() || "null".equalsIgnoreCase(strVal)) {
             double num = obj.optDouble(key, Double.NaN);
             if (!Double.isNaN(num)) {
-                // Remove .0 — ex: 4013525.0 → "4013525"
                 long lv = (long) num;
                 return String.valueOf(lv);
             }

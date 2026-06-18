@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -38,12 +37,34 @@
             android:layout_marginStart="12dp" />
     </RelativeLayout>
 
-    <!-- Caixa de pesquisa -->
+    <!-- Caixa de pesquisa estilizada -->
     <SearchView
         android:id="@+id/searchViewUsuario"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:queryHint="Pesquisar usuário..." />
+        android:background="#FFFFFF"
+        android:elevation="2dp"
+        android:queryHint="Pesquisar por nome ou matrícula..."
+        android:iconifiedByDefault="false"
+        android:queryBackground="@android:color/transparent" />
+
+    <!-- Divisor -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0" />
+
+    <!-- Contador de resultados -->
+    <TextView
+        android:id="@+id/txtContador"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text=""
+        android:textSize="12sp"
+        android:textColor="#888888" />
 
     <!-- Lista -->
     <ListView
@@ -51,8 +72,8 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@android:color/darker_gray"
+        android:divider="#E0E0E0"
         android:dividerHeight="1dp"
-        android:padding="8dp" />
+        android:padding="4dp" />
 
 </LinearLayout>

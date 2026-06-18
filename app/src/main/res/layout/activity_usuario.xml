@@ -1,213 +1,374 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#FAFAFA">
+    android:layout_height="match_parent">
 
-    <!-- Barra de título -->
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:background="#005eb8">
-
-        <!-- Logo Sebrae -->
-        <ImageView
-            android:id="@+id/logoSEBRAE"
-            android:layout_width="65dp"
-            android:layout_height="65dp"
-            android:layout_centerVertical="true"
-            android:layout_alignParentStart="true"
-            android:src="@drawable/ic_sebrae_branco"
-            android:adjustViewBounds="true"
-            android:scaleType="fitCenter" />
-
-        <!-- Título -->
-        <TextView
-            android:id="@+id/txtTitulo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Cadastro do Responsável"
-            android:textColor="@android:color/white"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_centerVertical="true"
-            android:layout_toEndOf="@id/logoSEBRAE"
-            android:layout_marginStart="12dp" />
-    </RelativeLayout>
-
-    <!-- Conteúdo principal -->
-    <ScrollView
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         CONTEÚDO PRINCIPAL
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp">
+        android:orientation="vertical"
+        android:background="#FAFAFA">
+
+        <!-- Barra de título -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:background="#005eb8">
+
+            <ImageView
+                android:id="@+id/logoSEBRAE"
+                android:layout_width="65dp"
+                android:layout_height="65dp"
+                android:layout_centerVertical="true"
+                android:layout_alignParentStart="true"
+                android:src="@drawable/ic_sebrae_branco"
+                android:adjustViewBounds="true"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/txtTitulo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cadastro do Responsável"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_centerVertical="true"
+                android:layout_toEndOf="@id/logoSEBRAE"
+                android:layout_marginStart="12dp" />
+        </RelativeLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Campo Nome -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_nome_usr" />
+
+                    <EditText
+                        android:id="@+id/edtNome"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@android:color/transparent"
+                        android:hint="Nome"
+                        android:inputType="text" />
+                </LinearLayout>
+
+                <!-- Campo Matrícula -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_mat" />
+
+                    <EditText
+                        android:id="@+id/edtMat"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@android:color/transparent"
+                        android:hint="Chapa"
+                        android:inputType="number"
+                        android:maxLength="4"/>
+                </LinearLayout>
+
+                <!-- Botões -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:weightSum="3">
+
+                    <!-- Salvar -->
+                    <LinearLayout
+                        android:id="@+id/btnSalvar"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/btn_rounded"
+                        android:backgroundTint="#005eb8"
+                        android:paddingVertical="12dp"
+                        android:layout_marginEnd="4dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_salvar_usr"
+                            android:layout_marginBottom="2dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Salvar"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Carregar -->
+                    <LinearLayout
+                        android:id="@+id/btnUpload"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/btn_rounded"
+                        android:backgroundTint="#FF9800"
+                        android:paddingVertical="12dp"
+                        android:layout_marginEnd="4dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_upload_usr"
+                            android:layout_marginBottom="2dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Carregar"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Exibir -->
+                    <LinearLayout
+                        android:id="@+id/btnExibir"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/btn_rounded"
+                        android:backgroundTint="#546E7A"
+                        android:paddingVertical="12dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_list_usr"
+                            android:layout_marginBottom="2dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Exibir"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Status -->
+                <TextView
+                    android:id="@+id/txtDadosSalvos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#333333"
+                    android:textSize="16sp"
+                    android:padding="12dp"
+                    android:lineSpacingExtra="4dp"
+                    android:text="Status da sincronização aparecerá aqui." />
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         OVERLAY DE SINCRONIZAÇÃO
+         Cor azul #005eb8 para diferenciar da tela de locais
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <FrameLayout
+        android:id="@+id/overlaySync"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="280dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="#FFFFFF"
+            android:padding="28dp"
+            android:elevation="8dp">
 
-            <!-- Campo Nome -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <!-- Spinner azul -->
+            <ProgressBar
+                android:id="@+id/progressSpinner"
+                style="?android:attr/progressBarStyleLarge"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:indeterminateTint="#005eb8"
+                android:layout_marginBottom="20dp" />
+
+            <!-- Título -->
+            <TextView
+                android:id="@+id/txtSyncTitulo"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="12dp">
+                android:text="Sincronizando..."
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#222222"
+                android:layout_marginBottom="16dp" />
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginEnd="12dp"
-                    android:src="@drawable/ic_nome_usr" />
-
-                <EditText
-                    android:id="@+id/edtNome"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@android:color/transparent"
-                    android:hint="Nome"
-                    android:inputType="text" />
-            </LinearLayout>
-
-            <!-- Campo Matrícula -->
-            <LinearLayout
+            <!-- Barra de progresso horizontal -->
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
+                android:layout_height="8dp"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#005eb8"
+                android:progressBackgroundTint="#E0E0E0"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Contador -->
+            <TextView
+                android:id="@+id/txtSyncContador"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="12dp">
+                android:text="Aguardando resposta..."
+                android:textSize="13sp"
+                android:textColor="#555555"
+                android:layout_marginBottom="16dp" />
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginEnd="12dp"
-                    android:src="@drawable/ic_mat" />
-
-                <EditText
-                    android:id="@+id/edtMat"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@android:color/transparent"
-                    android:hint="Chapa"
-                    android:inputType="number"
-                    android:maxLength="4"/>
-            </LinearLayout>
-
-            <!-- Linha com os três botões lado a lado -->
+            <!-- Inseridos / Ignorados / Erros -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
                 android:weightSum="3">
 
-                <!-- Botão Salvar -->
+                <!-- Inseridos -->
                 <LinearLayout
-                    android:id="@+id/btnSalvar"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:background="@drawable/btn_rounded"
-                    android:backgroundTint="#005eb8"
-                    android:paddingVertical="12dp"
-                    android:layout_marginEnd="4dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                    android:orientation="vertical"
+                    android:gravity="center">
 
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_salvar_usr"
-                        android:layout_marginEnd="6dp" />
+                    <TextView
+                        android:id="@+id/txtSyncNovos"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="#005eb8" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Salvar"
-                        android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:text="Inseridos"
+                        android:textSize="11sp"
+                        android:textColor="#888888" />
                 </LinearLayout>
 
-                <!-- Botão Carregar -->
+                <!-- Ignorados -->
                 <LinearLayout
-                    android:id="@+id/btnUpload"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:background="@drawable/btn_rounded"
-                    android:backgroundTint="#4CAF50"
-                    android:paddingVertical="12dp"
-                    android:layout_marginEnd="4dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                    android:orientation="vertical"
+                    android:gravity="center">
 
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_upload_usr"
-                        android:layout_marginEnd="6dp" />
+                    <TextView
+                        android:id="@+id/txtSyncDuplicados"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="#FF9800" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Carregar"
-                        android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:text="Ignorados"
+                        android:textSize="11sp"
+                        android:textColor="#888888" />
                 </LinearLayout>
 
-                <!-- Botão Exibir -->
+                <!-- Erros -->
                 <LinearLayout
-                    android:id="@+id/btnExibir"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:background="@drawable/btn_rounded"
-                    android:backgroundTint="#546E7A"
-                    android:paddingVertical="12dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                    android:orientation="vertical"
+                    android:gravity="center">
 
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_list_usr"
-                        android:layout_marginEnd="6dp" />
+                    <TextView
+                        android:id="@+id/txtSyncErros"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="#F44336" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Exibir"
-                        android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:text="Erros"
+                        android:textSize="11sp"
+                        android:textColor="#888888" />
                 </LinearLayout>
             </LinearLayout>
-
-            <!-- Texto de status -->
-            <TextView
-                android:id="@+id/txtDadosSalvos"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="#333333"
-                android:textSize="16sp" />
         </LinearLayout>
-    </ScrollView>
-</LinearLayout>
+    </FrameLayout>
+
+</FrameLayout>

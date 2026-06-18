@@ -53,11 +53,11 @@ public class LocalActivity extends AppCompatActivity {
 
     private static final int    REQUEST_CODE_XLSX = 1001;
     private static final String TAG               = "LocalActivity";
-    private static final String ENDPOINT_ID       = "5ab32a7c-c8c1-43d3-b74c-1e12111e3161/execute";
-    private static final String API_KEY           = "26a979bf-63dc-46d1-b138-6af25138398a";
-    private static final String REQUEST_BODY      = "{\"CODCOLIGADA\":1,\"CODFILIAL\":1,\"ATIVO\":1}";
+    // API_KEY e ENDPOINT_ID removidos — vêm do SettingsActivity dinamicamente
 
-    // Poison pill para sinalizar fim da fila (1 consumer agora)
+    private static final String REQUEST_BODY = "{\"CODCOLIGADA\":1,\"CODFILIAL\":1,\"ATIVO\":1}";
+
+    // Poison pill para sinalizar fim da fila
     private static final Local POISON_PILL = new Local(-1, null, null, null);
 
     // Formulário
@@ -97,7 +97,7 @@ public class LocalActivity extends AppCompatActivity {
         txtSyncDuplicados = findViewById(R.id.txtSyncDuplicados);
         txtSyncErros      = findViewById(R.id.txtSyncErros);
 
-        dbHelper = new DBHelper(this);
+        dbHelper = DBHelper.getInstance(this);
 
         configurarEditTextNumerico(edtCodLocal,  4);
         configurarEditTextNumerico(edtCodFilial, 3);
@@ -172,22 +172,23 @@ public class LocalActivity extends AppCompatActivity {
 
     // =========================================================================
     // Sync — 1 thread de rede (producer) + 1 thread de banco (consumer)
-    // Corrigido: banco aberto UMA vez em transação → sem "connection pool closed"
     // =========================================================================
 
     private void sincronizarLocais() {
-        String baseUrl = SettingsActivity.getBaseUrl(this);
-        if (baseUrl == null || baseUrl.isEmpty()) {
+        // URL completa já vem do SettingsActivity — sem concatenar endpoint aqui
+        String urlCompleta = SettingsActivity.getBaseUrl(this);
+        String apiKey      = SettingsActivity.getApiKey(this);
+
+        if (urlCompleta == null || urlCompleta.isEmpty()) {
             Toast.makeText(this,
-                    "Configure a Base URL em Configurações antes de sincronizar.",
+                    "Configure o ambiente em Configurações antes de sincronizar.",
                     Toast.LENGTH_LONG).show();
             return;
         }
 
-        mostrarOverlay();
-
-        String urlCompleta = (baseUrl.endsWith("/") ? baseUrl : baseUrl + "/") + ENDPOINT_ID;
         Log.d(TAG, "Sync URL: " + urlCompleta);
+
+        mostrarOverlay();
 
         Handler       handler   = new Handler(Looper.getMainLooper());
         AtomicInteger inseridos = new AtomicInteger(0);
@@ -198,10 +199,10 @@ public class LocalActivity extends AppCompatActivity {
 
         BlockingQueue<Local> fila        = new LinkedBlockingQueue<>(200);
         ExecutorService      producerExe = Executors.newSingleThreadExecutor();
-        ExecutorService      dbExe       = Executors.newSingleThreadExecutor(); // 1 thread só
+        ExecutorService      dbExe       = Executors.newSingleThreadExecutor();
         ExecutorService      monitorExe  = Executors.newSingleThreadExecutor();
 
-        // ── Consumer: 1 thread, banco aberto uma vez em transação ─────────────
+        // ── Consumer ─────────────────────────────────────────────────────────
         dbExe.submit(() -> {
             SQLiteDatabase sqlDB = dbHelper.getWritableDatabase();
             sqlDB.beginTransaction();
@@ -235,7 +236,7 @@ public class LocalActivity extends AppCompatActivity {
                         int processados = inseridos.get() + ignorados.get() + erros.get();
                         if (processados % 20 == 0) {
                             final int fi = inseridos.get(), fg = ignorados.get(),
-                                    fe = erros.get(),    ft = total.get();
+                                    fe = erros.get(), ft = total.get();
                             handler.post(() -> atualizarOverlay(fi + fg + fe, ft, fi, fg, fe));
                         }
 
@@ -245,7 +246,7 @@ public class LocalActivity extends AppCompatActivity {
                     }
                 }
 
-                sqlDB.setTransactionSuccessful(); // commit
+                sqlDB.setTransactionSuccessful();
 
             } finally {
                 sqlDB.endTransaction();
@@ -253,7 +254,7 @@ public class LocalActivity extends AppCompatActivity {
             }
         });
 
-        // ── Producer: rede + parse JSON ───────────────────────────────────────
+        // ── Producer ─────────────────────────────────────────────────────────
         producerExe.submit(() -> {
             try {
                 URL               url  = new URL(urlCompleta);
@@ -264,7 +265,7 @@ public class LocalActivity extends AppCompatActivity {
                 conn.setDoOutput(true);
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Accept",       "application/json");
-                conn.setRequestProperty("apiKey",       API_KEY);
+                conn.setRequestProperty("apiKey",       apiKey);
 
                 try (OutputStream os = conn.getOutputStream();
                      BufferedWriter bw = new BufferedWriter(
@@ -325,7 +326,7 @@ public class LocalActivity extends AppCompatActivity {
             producerExe.shutdown();
         });
 
-        // ── Monitor: aguarda DB thread → fecha overlay ────────────────────────
+        // ── Monitor ──────────────────────────────────────────────────────────
         monitorExe.submit(() -> {
             try {
                 dbExe.shutdown();

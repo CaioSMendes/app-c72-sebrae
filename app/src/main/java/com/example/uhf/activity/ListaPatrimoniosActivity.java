@@ -3,81 +3,117 @@ package com.example.uhf.activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ListView;
-import android.widget.Toast;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 
 import com.example.uhf.R;
+import com.example.uhf.model.Patrimonio;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class ListaPatrimoniosActivity extends AppCompatActivity {
 
-    private ListView listView;
+    private ListView   listView;
     private SearchView searchView;
-    private PatrimonioAdapter adapter;
+    private TextView   txtContador;
 
-    private DBHelper db;
-    private List<com.example.uhf.model.Patrimonio> listaPatrimonios;
-    private List<com.example.uhf.model.Patrimonio> listaFiltrada;
+    private PatrimonioAdapter adapter;
+    private DBHelper          db;
+
+    private List<Patrimonio> listaCompleta = new ArrayList<>();
+    private List<Patrimonio> listaFiltrada = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_lista_patrimonios);
 
-        db = new DBHelper(this);
-        listView = findViewById(R.id.listViewPatrimonios);
-        searchView = findViewById(R.id.searchViewPatrimonios);
+        db          = DBHelper.getInstance(this);
+        listView    = findViewById(R.id.listViewPatrimonios);
+        searchView  = findViewById(R.id.searchViewPatrimonios);
+        txtContador = findViewById(R.id.txtContador);
 
         carregarPatrimonios();
 
-        // Filtrar pela SearchView
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                filtrarLista(query);
+                filtrarLista(query.trim());
                 return false;
             }
-
             @Override
             public boolean onQueryTextChange(String newText) {
-                filtrarLista(newText);
+                filtrarLista(newText.trim());
                 return false;
             }
         });
 
-        // Clique em item para abrir detalhes
         listView.setOnItemClickListener((parent, view, position, id) -> {
-            com.example.uhf.model.Patrimonio p = listaFiltrada.get(position);
+            Patrimonio p = listaFiltrada.get(position);
             Intent intent = new Intent(ListaPatrimoniosActivity.this, DetalhePatrimonioActivity.class);
             intent.putExtra("id", p.getId());
             startActivity(intent);
         });
     }
 
-    private void carregarPatrimonios() {
-        listaPatrimonios = db.listarPatrimonios();
-        listaFiltrada = new ArrayList<>(listaPatrimonios);
-        adapter = new PatrimonioAdapter(this, listaFiltrada);
-        listView.setAdapter(adapter);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        carregarPatrimonios();
     }
+
+    // =========================================================================
+    // Carrega e ordena alfabeticamente pela descrição
+    // =========================================================================
+
+    private void carregarPatrimonios() {
+        listaCompleta = db.listarPatrimonios();
+
+        // Ordem alfabética pela descrição
+        Collections.sort(listaCompleta,
+                (a, b) -> a.getDescricao().compareToIgnoreCase(b.getDescricao()));
+
+        // Reaplica filtro atual
+        String query = searchView != null
+                ? searchView.getQuery().toString().trim()
+                : "";
+        filtrarLista(query);
+    }
+
+    // =========================================================================
+    // Filtro — patrimônio OU código de barras + contador
+    // =========================================================================
 
     private void filtrarLista(String query) {
         listaFiltrada.clear();
+
         if (query.isEmpty()) {
-            listaFiltrada.addAll(listaPatrimonios);
+            listaFiltrada.addAll(listaCompleta);
         } else {
-            query = query.toLowerCase();
-            for (com.example.uhf.model.Patrimonio p : listaPatrimonios) {
-                if (p.getPatrimonio().toLowerCase().contains(query) ||
-                        p.getCodigoBarra().toLowerCase().contains(query)) {
+            String q = query.toLowerCase();
+            for (Patrimonio p : listaCompleta) {
+                if (p.getPatrimonio().toLowerCase().contains(q)  ||
+                        p.getDescricao().toLowerCase().contains(q)   ||
+                        p.getCodigoBarra().toLowerCase().contains(q)) {
                     listaFiltrada.add(p);
                 }
             }
         }
-        adapter.notifyDataSetChanged();
+
+        // Contador
+        if (txtContador != null) {
+            int total    = listaCompleta.size();
+            int exibindo = listaFiltrada.size();
+            txtContador.setText(query.isEmpty()
+                    ? total + " patrimônio(s)"
+                    : exibindo + " de " + total + " resultado(s)");
+        }
+
+        adapter = new PatrimonioAdapter(this, listaFiltrada);
+        listView.setAdapter(adapter);
     }
 }

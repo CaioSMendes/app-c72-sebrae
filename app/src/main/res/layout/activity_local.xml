@@ -170,7 +170,7 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- Sincronizar -->
+                    <!-- Carregar -->
                     <LinearLayout
                         android:id="@+id/btnSync"
                         android:layout_width="0dp"
@@ -194,7 +194,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Sincronizar"
+                            android:text="Carregar"
                             android:textColor="@android:color/white"
                             android:textSize="12sp"
                             android:textStyle="bold" />

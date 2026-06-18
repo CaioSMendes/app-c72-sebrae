@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FAFAFA">
+
+    <!-- Barra de título -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#005eb8"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/logoSEBRAE"
+            android:layout_width="65dp"
+            android:layout_height="65dp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_sebrae_branco" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Leitura por Categoria"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="12dp"
+            android:layout_toEndOf="@id/logoSEBRAE" />
+    </RelativeLayout>
+
+    <!-- INFO DO TOPO -->
+    <TextView
+        android:id="@+id/txtInfoTopoCategoria"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Informacoes"
+        android:textStyle="bold"
+        android:textColor="#005eb8"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/txtInfoUserCategoria"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Usuario"
+        android:textStyle="bold"
+        android:textColor="#005eb8"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:gravity="center" />
+
+    <!-- ═══ BOTÕES SUPERIORES — vertical, altura fixa 72dp ════ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:layout_marginBottom="6dp"
+        android:layout_marginTop="4dp">
+
+        <LinearLayout
+            android:id="@+id/btnLerCategoria"
+            android:layout_width="0dp"
+            android:layout_height="72dp"
+            android:orientation="vertical"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#005eb8"
+            android:layout_marginEnd="3dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ler_rfid"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/txtBotaoCategoria"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Iniciar Leitura"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:maxLines="2"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnLimparCategoria"
+            android:layout_width="0dp"
+            android:layout_height="72dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#F57F17"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_clean"
+                android:layout_marginBottom="3dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Limpar"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnModoToggleCategoria"
+            android:layout_width="0dp"
+            android:layout_height="72dp"
+            android:orientation="vertical"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#005eb8"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_leitorrfid"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/txtModoToggleCategoria"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Modo: RFID"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:maxLines="2"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnDistanciaCategoria"
+            android:layout_width="0dp"
+            android:layout_height="72dp"
+            android:orientation="vertical"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#546E7A"
+            android:layout_marginStart="3dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/distance"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Distância"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:maxLines="2"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ═══ BARRA DE PESQUISA POR CATEGORIA ══════════════════ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="6dp">
+
+        <!-- Contador -->
+        <TextView
+            android:id="@+id/tvContadorCategoria"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Lidos: 0 / 0"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:paddingBottom="6dp" />
+
+        <!-- Campo de busca com botão limpar inline -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_btn_card">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@android:drawable/ic_menu_search"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="6dp"
+                android:alpha="0.5" />
+
+            <EditText
+                android:id="@+id/etBuscaCategoria"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:hint="Buscar categoria (ex: notebook, cadeira...)"
+                android:textSize="13sp"
+                android:background="@null"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/btnLimparFiltro"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:text="✕"
+                android:textSize="16sp"
+                android:textColor="#999999"
+                android:gravity="center"
+                android:visibility="gone"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginEnd="4dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ═══ SCROLL DOS GRUPOS ════════════════════════════════ -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollCategoria"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Empty state — aparece quando a busca não tem resultados -->
+            <TextView
+                android:id="@+id/tvEmptyStateCategoria"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Digite um termo para buscar categorias."
+                android:textSize="14sp"
+                android:textColor="#9E9E9E"
+                android:gravity="center"
+                android:padding="32dp"
+                android:visibility="visible" />
+
+            <!-- Grupos gerados dinamicamente -->
+            <LinearLayout
+                android:id="@+id/containerGrupos"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ═══ BOTÕES INFERIORES — vertical, altura fixa 64dp ═══ -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:background="#FAFAFA">
+
+        <LinearLayout
+            android:id="@+id/btnResumoCategoria"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#005eb8"
+            android:layout_marginEnd="3dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_resumo"
+                android:layout_marginBottom="3dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Resumo"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnConcluirCategoria"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#4CAF50"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_concluir"
+                android:layout_marginBottom="3dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Concluir"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnHistoricoCategoria"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="#546E7A"
+            android:layout_marginStart="3dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_historico"
+                android:layout_marginBottom="3dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Histórico"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

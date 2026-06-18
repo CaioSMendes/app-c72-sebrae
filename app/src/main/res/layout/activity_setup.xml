@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -46,14 +47,13 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- ── Card: Ambiente ── -->
+            <!-- Card Ambiente -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                xmlns:app="http://schemas.android.com/apk/res-auto">
+                app:cardElevation="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -61,7 +61,6 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- Label do grupo -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -71,7 +70,6 @@
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
 
-                    <!-- RadioGroup -->
                     <RadioGroup
                         android:id="@+id/rgAmbiente"
                         android:layout_width="match_parent"
@@ -102,16 +100,15 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- ── Card: Base URL ── -->
+            <!-- Card Base URL -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardBaseUrl"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp"
+                android:layout_marginBottom="16dp"
                 android:visibility="gone"
                 app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                xmlns:app="http://schemas.android.com/apk/res-auto">
+                app:cardElevation="2dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -119,7 +116,6 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- Label -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -129,7 +125,6 @@
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp"/>
 
-                    <!-- Row: ícone + campo -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -156,7 +151,6 @@
 
                     </LinearLayout>
 
-                    <!-- Dica de campo bloqueado -->
                     <TextView
                         android:id="@+id/txtUrlInfo"
                         android:layout_width="match_parent"
@@ -169,20 +163,117 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Card Parâmetros -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Parâmetros da API"
+                        android:textSize="13sp"
+                        android:textColor="#005eb8"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="16dp"/>
+
+                    <!-- CODCOLIGADA -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Código Coligada"
+                        android:textColor="#005eb8"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="4dp"/>
+
+                    <EditText
+                        android:id="@+id/edtCodColigada"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="1"
+                        android:inputType="number"
+                        android:layout_marginBottom="12dp"/>
+
+                    <!-- CODFILIAL -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Código Filial"
+                        android:textColor="#005eb8"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="4dp"/>
+
+                    <EditText
+                        android:id="@+id/edtCodFilial"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="1"
+                        android:inputType="number"
+                        android:layout_marginBottom="12dp"/>
+
+                    <!-- ATIVO -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Status Ativo"
+                        android:textColor="#005eb8"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="4dp"/>
+
+                    <EditText
+                        android:id="@+id/edtAtivo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="1"
+                        android:inputType="number"/>
+
+                    <!-- API KEY -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="API Key"
+                        android:textColor="#005eb8"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="4dp"/>
+
+                    <EditText
+                        android:id="@+id/edtApiKey"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"/>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+
             <!-- Botão salvar -->
             <Button
                 android:id="@+id/btnSalvar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/btn_rounded"
-                android:text="Salvar"
                 android:backgroundTint="#005eb8"
+                android:text="Salvar"
                 android:textColor="@android:color/white"
-                android:padding="14dp"
                 android:textAllCaps="false"
+                android:padding="14dp"
                 android:layout_marginBottom="16dp"/>
 
-            <!-- Resumo dos dados salvos -->
+            <!-- Resumo -->
             <TextView
                 android:id="@+id/txtDadosSalvos"
                 android:layout_width="match_parent"
@@ -193,6 +284,7 @@
                 android:lineSpacingExtra="4dp"/>
 
         </LinearLayout>
+
     </ScrollView>
 
 </LinearLayout>

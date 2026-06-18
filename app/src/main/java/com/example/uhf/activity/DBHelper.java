@@ -2,6 +2,7 @@ package com.example.uhf.activity;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -43,9 +44,48 @@ public class DBHelper extends SQLiteOpenHelper {
 
     private static final String TABLE_HISTORICO = "historico";
 
-    public DBHelper(Context context) {
-        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    // =========================================================================
+    // SINGLETON
+    // =========================================================================
+
+    private static DBHelper instance;
+
+    public static synchronized DBHelper getInstance(Context context) {
+        if (instance == null) {
+            instance = new DBHelper(context.getApplicationContext());
+        }
+        return instance;
     }
+
+    public static synchronized void resetInstance() {
+        if (instance != null) {
+            instance.close();
+            instance = null;
+        }
+    }
+
+    // =========================================================================
+    // CONSTRUTOR
+    // =========================================================================
+
+    public DBHelper(Context context) {
+        super(context, getDatabaseName(context), null, DATABASE_VERSION);
+    }
+
+    // =========================================================================
+    // NOME DO BANCO (por ambiente)
+    // =========================================================================
+
+    private static String getDatabaseName(Context context) {
+        SharedPreferences prefs =
+                context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        String ambiente = prefs.getString("ambiente", "homologacao");
+        return "producao".equals(ambiente) ? "sebraeapp_prod.db" : "sebraeapp_homolog.db";
+    }
+
+    // =========================================================================
+    // CRIAÇÃO E MIGRAÇÃO
+    // =========================================================================
 
     @Override
     public void onCreate(SQLiteDatabase db) {
@@ -100,6 +140,10 @@ public class DBHelper extends SQLiteOpenHelper {
     // HISTÓRICO
     // =========================================================================
 
+    /**
+     * Salva tag no histórico com tipo simples (compatibilidade com código legado).
+     * Para os novos modos de inventário prefira salvarHistoricoComTipo().
+     */
     public void salvarHistorico(String filial, String localCodigo,
                                 String matricula, String tag, String tipo) {
         SQLiteDatabase db = this.getWritableDatabase();
@@ -109,6 +153,25 @@ public class DBHelper extends SQLiteOpenHelper {
         cv.put("matricula",   matricula);
         cv.put("tag",         tag);
         cv.put("tipo",        tipo);
+        cv.put("dataHora",    new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date()));
+        db.insert(TABLE_HISTORICO, null, cv);
+        db.close();
+    }
+
+    /**
+     * Salva tag no histórico com o tipo de inventário correto.
+     * Use este nos 3 modos (LIVRE / LOCAL / CATEGORIA / CODBARRA).
+     */
+    public void salvarHistoricoComTipo(String filial, String localCodigo,
+                                       String matricula, String tag,
+                                       String tipoInventario) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("filial",      filial);
+        cv.put("localCodigo", localCodigo);
+        cv.put("matricula",   matricula);
+        cv.put("tag",         tag);
+        cv.put("tipo",        tipoInventario); // "LIVRE" | "LOCAL" | "CATEGORIA" | "CODBARRA"
         cv.put("dataHora",    new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date()));
         db.insert(TABLE_HISTORICO, null, cv);
         db.close();
@@ -126,6 +189,9 @@ public class DBHelper extends SQLiteOpenHelper {
         return res != -1;
     }
 
+    /**
+     * Histórico agrupado simples (compatibilidade — usado pelo código legado).
+     */
     public Cursor listarHistoricoAgrupado() {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.rawQuery(
@@ -136,6 +202,34 @@ public class DBHelper extends SQLiteOpenHelper {
                         "FROM " + TABLE_HISTORICO + " h " +
                         "GROUP BY h.localCodigo " +
                         "ORDER BY filial ASC, ultimaData DESC", null);
+    }
+
+    /**
+     * Histórico agrupado com tipo de inventário e total de tags.
+     * Usado pela nova HistoricoActivity.
+     *
+     * Colunas retornadas (por índice):
+     *   0 → localCodigo
+     *   1 → localNome
+     *   2 → filial
+     *   3 → tipoRecente   (tipo da leitura mais recente do local)
+     *   4 → ultimaData
+     *   5 → totalTags     (quantidade de registros no histórico)
+     */
+    public Cursor listarHistoricoAgrupadoComTipo() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery(
+                "SELECT " +
+                        "  h.localCodigo, " +
+                        "  (SELECT local_nome    FROM locais WHERE codigo_local = h.localCodigo LIMIT 1) AS localNome, " +
+                        "  (SELECT codigo_filial FROM locais WHERE codigo_local = h.localCodigo LIMIT 1) AS filial, " +
+                        "  (SELECT tipo FROM historico WHERE localCodigo = h.localCodigo ORDER BY id DESC LIMIT 1) AS tipoRecente, " +
+                        "  MAX(h.dataHora) AS ultimaData, " +
+                        "  COUNT(h.id)     AS totalTags " +
+                        "FROM historico h " +
+                        "GROUP BY h.localCodigo " +
+                        "ORDER BY ultimaData DESC",
+                null);
     }
 
     public Cursor listarHistoricoPorSessao(String sessaoId) {
@@ -201,6 +295,23 @@ public class DBHelper extends SQLiteOpenHelper {
         c.close();
         db.close();
         return existe;
+    }
+
+    public boolean existeMatriculaNaTransacao(SQLiteDatabase db, String matricula) {
+        Cursor c = db.rawQuery(
+                "SELECT 1 FROM " + TABLE_USUARIO +
+                        " WHERE " + COL_MATRICULA + "=? LIMIT 1",
+                new String[]{ matricula });
+        boolean existe = c.moveToFirst();
+        c.close();
+        return existe;
+    }
+
+    public long salvarUsuarioNaTransacao(SQLiteDatabase db, Usuario usuario) {
+        ContentValues values = new ContentValues();
+        values.put(COL_NOME,      usuario.getNome());
+        values.put(COL_MATRICULA, usuario.getMatricula());
+        return db.insert(TABLE_USUARIO, null, values);
     }
 
     public boolean existeNome(String nome) {
@@ -333,10 +444,6 @@ public class DBHelper extends SQLiteOpenHelper {
         return existe;
     }
 
-    /**
-     * Verifica duplicata usando conexão já aberta (transação do LocalActivity).
-     * NÃO abre nem fecha o banco.
-     */
     public boolean existeCodigoLocalNaTransacao(SQLiteDatabase db, String codigoLocal) {
         Cursor c = db.rawQuery(
                 "SELECT 1 FROM " + TABLE_LOCAL +
@@ -347,10 +454,6 @@ public class DBHelper extends SQLiteOpenHelper {
         return existe;
     }
 
-    /**
-     * Insere local usando conexão já aberta (transação do LocalActivity).
-     * NÃO abre nem fecha o banco.
-     */
     public long salvarLocalNaTransacao(SQLiteDatabase db, Local local) {
         ContentValues v = new ContentValues();
         v.put(COL_LOCAL_NOME,    local.getLocalNome()    != null ? local.getLocalNome()    : "");
@@ -503,6 +606,21 @@ public class DBHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor c = db.rawQuery(
                 "SELECT * FROM " + TABLE_PATRIMONIO + " ORDER BY id DESC", null);
+        if (c.moveToFirst()) {
+            do { lista.add(patrimonioFromCursor(c)); } while (c.moveToNext());
+        }
+        c.close();
+        db.close();
+        return lista;
+    }
+
+    public List<Patrimonio> listarPatrimoniosPorLocal(String codigoLocal) {
+        List<Patrimonio> lista = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery(
+                "SELECT * FROM " + TABLE_PATRIMONIO +
+                        " WHERE " + COL_COD_LOCAL + " = ? ORDER BY " + COL_DESCRICAO + " ASC",
+                new String[]{ codigoLocal });
         if (c.moveToFirst()) {
             do { lista.add(patrimonioFromCursor(c)); } while (c.moveToNext());
         }

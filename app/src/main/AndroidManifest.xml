@@ -82,6 +82,10 @@
         <activity android:name=".activity.ListaUsuariosActivity" />
         <activity android:name=".activity.DetalheUsuarioActivity" />
 
+        <activity android:name=".activity.InventarioLivreActivity" />
+        <activity android:name=".activity.InventarioLocalActivity" />
+        <activity android:name=".activity.InventarioCategoriaActivity" />
+
         <activity android:name=".activity.ResumoActivity" />
 
         <activity android:name="com.example.uhf.activity.UHFMainActivity" />

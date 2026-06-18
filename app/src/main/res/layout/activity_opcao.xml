@@ -36,7 +36,7 @@
             android:layout_marginStart="12dp" />
     </RelativeLayout>
 
-    <!-- Container central dos botões -->
+    <!-- Container central -->
     <LinearLayout
         android:id="@+id/containerCentral"
         android:layout_width="match_parent"
@@ -44,7 +44,7 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <!-- Linha única com dois botões CENTRALIZADOS -->
+        <!-- Linha com botões de leitura -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -104,6 +104,188 @@
                     android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
+
+        <!-- ═══════════════════════════════════════════════════════
+             Painel de 3 opções — aparece abaixo do botão RFID
+             Começa GONE, fica VISIBLE ao clicar no botão RFID
+             ═══════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:id="@+id/painelOpcoes"
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:background="@drawable/bg_btn_card"
+            android:visibility="gone">
+
+            <!-- Cabeçalho do painel -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Selecione o tipo de leitura"
+                android:textSize="13sp"
+                android:textColor="#005eb8"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:paddingTop="14dp"
+                android:paddingBottom="10dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#E0E0E0" />
+
+            <!-- Opção 1: Leitura Livre -->
+            <LinearLayout
+                android:id="@+id/optLeituraLivre"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_leitorrfid"
+                    android:scaleType="fitCenter" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Leitura Livre"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="#212121" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Todos os patrimônios"
+                        android:textSize="11sp"
+                        android:textColor="#757575" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F0F0F0"
+                android:layout_marginStart="56dp" />
+
+            <!-- Opção 2: Leitura por Local -->
+            <LinearLayout
+                android:id="@+id/optLeituraPorLocal"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_local"
+                    android:scaleType="fitCenter" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Leitura por Local"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="#212121" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Filtrar por localização"
+                        android:textSize="11sp"
+                        android:textColor="#757575" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F0F0F0"
+                android:layout_marginStart="56dp" />
+
+            <!-- Opção 3: Leitura por Categoria -->
+            <LinearLayout
+                android:id="@+id/optLeituraPorCategoria"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_categoria"
+                    android:scaleType="fitCenter" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Leitura por Categoria"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="#212121" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Filtrar por categoria"
+                        android:textSize="11sp"
+                        android:textColor="#757575" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Padding inferior -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="8dp" />
+
+        </LinearLayout>
+        <!-- fim painelOpcoes -->
+
     </LinearLayout>
 
 </LinearLayout>

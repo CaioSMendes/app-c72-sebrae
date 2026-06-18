@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:gravity="center_vertical"
+    android:background="@android:color/white">
+
+    <!-- Ícone colorido pelo tipo -->
+    <ImageView
+        android:id="@+id/imgTipoInventario"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_historico"
+        android:contentDescription="Tipo"
+        android:scaleType="fitCenter"
+        android:layout_marginEnd="12dp" />
+
+    <!-- Coluna central -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_weight="1">
+
+        <!-- Nome do local + filial -->
+        <TextView
+            android:id="@+id/txtHistLocalNome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#212121"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <!-- Linha: badge tipo + data -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/txtHistTipo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:textSize="10sp"
+                android:textColor="@android:color/white"
+                android:textStyle="bold"
+                android:background="@drawable/bg_badge_cinza"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/txtHistData"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="11sp"
+                android:textColor="#757575" />
+
+        </LinearLayout>
+
+        <!-- Dica toque longo -->
+        <TextView
+            android:id="@+id/txtHistDica"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Segure para apagar"
+            android:textSize="10sp"
+            android:textColor="#BDBDBD"
+            android:layout_marginTop="2dp" />
+
+    </LinearLayout>
+
+    <!-- Total de tags -->
+    <TextView
+        android:id="@+id/txtHistTotal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#005eb8"
+        android:gravity="center"
+        android:layout_marginStart="8dp" />
+
+</LinearLayout>

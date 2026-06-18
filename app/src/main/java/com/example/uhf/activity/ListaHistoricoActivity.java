@@ -15,17 +15,21 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.InputFilter;
 import android.text.InputType;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import com.example.uhf.R;
-import com.example.uhf.adapter.HistoricoDetalheAdapter;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,9 +38,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -57,48 +63,52 @@ public class ListaHistoricoActivity extends AppCompatActivity {
     ListView list;
     DBHelper db;
 
-    ArrayList<String> locais = new ArrayList<>();
-    ArrayList<String> matriculas = new ArrayList<>();
-    ArrayList<String> tags = new ArrayList<>();
+    // Dados carregados do banco
+    ArrayList<Integer> ids        = new ArrayList<>(); // id de cada registro
+    ArrayList<String>  locais     = new ArrayList<>();
+    ArrayList<String>  matriculas = new ArrayList<>();
+    ArrayList<String>  tags       = new ArrayList<>();
+    ArrayList<String>  tipos      = new ArrayList<>();
+    ArrayList<String>  dataHoras  = new ArrayList<>();
+    ArrayList<String>  descricoes = new ArrayList<>(); // descrição buscada no banco
 
-    // AGORA É GLOBAL
-    HistoricoDetalheAdapter adapter;
-    String localCodigoTela = "";
-    String codigoFilial = "001";
+    DetalheAdapter adapter;
+    String localCodigoTela  = "";
+    String codigoFilial     = "001";
     String chapaFuncionario = "00000001";
+
+    LinearLayout btnExcluir;
 
     ExecutorService emailExecutor = Executors.newSingleThreadExecutor();
     Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    // Guarda último arquivo gerado para envio rápido (opcional)
     private File ultimoArquivoGerado = null;
 
+    // ─────────────────────────────────────────────────────────────
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_historico_lista_detalhe);
 
         list = findViewById(R.id.listHistoricoLocais);
-        db = new DBHelper(this);
+        db   = new DBHelper(this);
 
-        // Recebe parâmetros
         if (getIntent() != null) {
             localCodigoTela = getIntent().getStringExtra("localCodigo");
-            String fil = getIntent().getStringExtra("codigoFilial");
+            String fil  = getIntent().getStringExtra("codigoFilial");
             String chap = getIntent().getStringExtra("chapaFuncionario");
-
-            if (fil != null) codigoFilial = fil;
-            if (chap != null) chapaFuncionario = chap;
+            if (fil  != null) codigoFilial     = fil;
+            if (chap != null) chapaFuncionario  = chap;
         }
 
-        // Botões -------------- AQUI ESTAVA O ERRO
-        LinearLayout btnTxt = findViewById(R.id.btnConcluir);
-        LinearLayout btnPdf = findViewById(R.id.btnResumo);
-        LinearLayout btnVoltar = findViewById(R.id.btnIncluir);
-        LinearLayout btnExcluir = findViewById(R.id.btnExcluir); // <-- CORREÇÃO
+        LinearLayout btnTxt     = findViewById(R.id.btnConcluir);
+        LinearLayout btnPdf     = findViewById(R.id.btnResumo);
+        LinearLayout btnVoltar  = findViewById(R.id.btnIncluir);
+        btnExcluir              = findViewById(R.id.btnExcluir);
 
         carregar(localCodigoTela);
 
+        // ── Gerar TXT ──────────────────────────────────────────
         btnTxt.setOnClickListener(v -> {
             if (tags.isEmpty()) {
                 Toast.makeText(this, "Nenhum dado para enviar!", Toast.LENGTH_SHORT).show();
@@ -107,6 +117,7 @@ public class ListaHistoricoActivity extends AppCompatActivity {
             gerarArquivoTXTComEmail();
         });
 
+        // ── Gerar PDF ──────────────────────────────────────────
         btnPdf.setOnClickListener(v -> {
             if (tags.isEmpty()) {
                 Toast.makeText(this, "Nenhum dado para enviar!", Toast.LENGTH_SHORT).show();
@@ -115,75 +126,192 @@ public class ListaHistoricoActivity extends AppCompatActivity {
             gerarPDFComEmail();
         });
 
+        // ── Seleção de itens para excluir ──────────────────────
         list.setOnItemClickListener((adapterView, view, position, id) -> {
-            adapter.toggleSelection(position);
-
-            if (adapter.getSelecionados().size() > 0) {
-                btnExcluir.setVisibility(View.VISIBLE);
-            } else {
-                btnExcluir.setVisibility(View.GONE);
-            }
+            adapter.toggleSelecionado(position);
+            btnExcluir.setVisibility(
+                    adapter.getSelecionados().isEmpty() ? View.GONE : View.VISIBLE);
         });
 
+        // ── Excluir selecionados ───────────────────────────────
         btnExcluir.setOnClickListener(v -> {
-            ArrayList<Integer> sel = adapter.getSelecionados();
-            sel.sort((a, b) -> b - a);
-
-            for (int pos : sel) {
-                db.deletarPorTag(tags.get(pos));
-                locais.remove(pos);
-                matriculas.remove(pos);
-                tags.remove(pos);
-            }
-
-            adapter.clearSelection();
-            adapter.notifyDataSetChanged();
-            btnExcluir.setVisibility(View.GONE);
+            new AlertDialog.Builder(this)
+                    .setTitle("Confirmar exclusão")
+                    .setMessage("Remover " + adapter.getSelecionados().size()
+                            + " registro(s) selecionado(s)?")
+                    .setPositiveButton("Remover", (dialog, which) -> excluirSelecionados())
+                    .setNegativeButton("Cancelar", null)
+                    .show();
         });
 
+        // ── Incluir manualmente ────────────────────────────────
         btnVoltar.setOnClickListener(v -> abrirPopupIncluir());
     }
 
-    private void carregarHistorico() {
-        matriculas.clear();
+    // ─────────────────────────────────────────────────────────────
+    // CARREGAMENTO
+    // ─────────────────────────────────────────────────────────────
+    private void carregar(String localCodigo) {
+        ids.clear();
         locais.clear();
+        matriculas.clear();
         tags.clear();
+        tipos.clear();
+        dataHoras.clear();
+        descricoes.clear();
 
-        Cursor c = db.getHistoricoPorLocal(localCodigoTela);
+        // listarHistoricoPorLocal retorna todas as colunas: id, sessaoId, filial,
+        // localCodigo, matricula, tag, tipo, dataHora
+        Cursor c = db.listarHistoricoPorLocal(localCodigo);
 
         while (c.moveToNext()) {
+            ids.add(       safeInt(c, "id"));
+            locais.add(    safeStr(c, "localCodigo"));
+            matriculas.add(safeStr(c, "matricula"));
+            tags.add(      safeStr(c, "tag"));
+            tipos.add(     safeStr(c, "tipo"));
+            dataHoras.add( safeStr(c, "dataHora"));
 
-            String m = c.getString(c.getColumnIndex("matricula"));
-            String l = c.getString(c.getColumnIndex("localCodigo"));
-            String t = c.getString(c.getColumnIndex("tag"));
-
-            matriculas.add(m);
-            locais.add(l);
-            tags.add(t);
+            // Descrição do patrimônio pelo código de barra
+            String tag = safeStr(c, "tag");
+            String tag5 = tag.length() >= 5 ? tag.substring(0, 5) : tag;
+            String desc = db.getDescricaoPorTag("040" + tag5);
+            descricoes.add(desc != null && !desc.isEmpty() ? desc : "Sem descrição");
         }
-
         c.close();
 
-        adapter.notifyDataSetChanged();
+        adapter = new DetalheAdapter();
+        list.setAdapter(adapter);
     }
 
+    private void carregarHistorico() {
+        carregar(localCodigoTela);
+        if (btnExcluir != null) btnExcluir.setVisibility(View.GONE);
+    }
 
+    // ─────────────────────────────────────────────────────────────
+    // EXCLUIR SELECIONADOS
+    // ─────────────────────────────────────────────────────────────
+    private void excluirSelecionados() {
+        ArrayList<Integer> sel = new ArrayList<>(adapter.getSelecionados());
+        Collections.sort(sel, Collections.reverseOrder()); // remove de trás pra frente
+
+        for (int pos : sel) {
+            db.deletarPorId(ids.get(pos));
+            ids.remove(pos);
+            locais.remove(pos);
+            matriculas.remove(pos);
+            tags.remove(pos);
+            tipos.remove(pos);
+            dataHoras.remove(pos);
+            descricoes.remove(pos);
+        }
+
+        adapter.clearSelecionados();
+        adapter.notifyDataSetChanged();
+        btnExcluir.setVisibility(View.GONE);
+        Toast.makeText(this, "Registro(s) removido(s).", Toast.LENGTH_SHORT).show();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ADAPTER COM NOVO LAYOUT
+    // ─────────────────────────────────────────────────────────────
+    private class DetalheAdapter extends BaseAdapter {
+
+        private final Set<Integer> selecionados = new HashSet<>();
+
+        void toggleSelecionado(int pos) {
+            if (selecionados.contains(pos)) selecionados.remove(pos);
+            else selecionados.add(pos);
+            notifyDataSetChanged();
+        }
+
+        Set<Integer> getSelecionados() { return selecionados; }
+
+        void clearSelecionados() {
+            selecionados.clear();
+            notifyDataSetChanged();
+        }
+
+        @Override public int     getCount()          { return tags.size(); }
+        @Override public Object  getItem(int pos)    { return tags.get(pos); }
+        @Override public long    getItemId(int pos)  { return pos; }
+
+        @Override
+        public View getView(int pos, View convertView, ViewGroup parent) {
+            if (convertView == null) {
+                convertView = LayoutInflater.from(ListaHistoricoActivity.this)
+                        .inflate(R.layout.item_historico_detalhe, parent, false);
+            }
+
+            TextView  txtTag      = convertView.findViewById(R.id.txtTag);
+            TextView  txtDescricao= convertView.findViewById(R.id.txtDescricao);
+            TextView  txtMatricula= convertView.findViewById(R.id.txtMatricula);
+            TextView  txtLocal    = convertView.findViewById(R.id.txtLocal);
+            TextView  txtTipo     = convertView.findViewById(R.id.txtTipoLeitura);
+            TextView  txtData     = convertView.findViewById(R.id.txtDataHora);
+            ImageView imgIcon     = convertView.findViewById(R.id.imgIcon);
+
+            txtTag.setText(tags.get(pos));
+            txtDescricao.setText(descricoes.get(pos));
+            txtMatricula.setText("Mat: " + matriculas.get(pos));
+            txtLocal.setText("Local: " + locais.get(pos));
+            txtData.setText(dataHoras.get(pos));
+
+            // Badge colorido por tipo
+            String tipo = tipos.get(pos) == null ? "" : tipos.get(pos).toUpperCase();
+            switch (tipo) {
+                case "LOCAL":
+                    txtTipo.setText("Local");
+                    txtTipo.setBackgroundResource(R.drawable.bg_badge_verde);
+                    imgIcon.setColorFilter(Color.parseColor("#2E7D32"));
+                    break;
+                case "CATEGORIA":
+                    txtTipo.setText("Categoria");
+                    txtTipo.setBackgroundResource(R.drawable.bg_badge_azul);
+                    imgIcon.setColorFilter(Color.parseColor("#005eb8"));
+                    break;
+                case "CODBARRA":
+                case "CODBARRAS":
+                    txtTipo.setText("Cód.Barras");
+                    txtTipo.setBackgroundTintList(
+                            android.content.res.ColorStateList.valueOf(
+                                    Color.parseColor("#E65100")));
+                    imgIcon.setColorFilter(Color.parseColor("#E65100"));
+                    break;
+                default:
+                    txtTipo.setText("Livre");
+                    txtTipo.setBackgroundTintList(
+                            android.content.res.ColorStateList.valueOf(
+                                    Color.parseColor("#546E7A")));
+                    imgIcon.setColorFilter(Color.parseColor("#546E7A"));
+                    break;
+            }
+
+            // Destaca item selecionado
+            convertView.setBackgroundColor(
+                    selecionados.contains(pos)
+                            ? Color.parseColor("#FFF9C4")  // amarelo suave
+                            : Color.WHITE);
+
+            return convertView;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // POPUP INCLUIR MANUALMENTE (original preservado)
+    // ─────────────────────────────────────────────────────────────
     private void abrirPopupIncluir() {
-
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(40, 20, 40, 10);
 
-        // ➤ MATRÍCULA (4 dígitos)
         EditText edtMatricula = new EditText(this);
         edtMatricula.setHint("Matrícula");
         edtMatricula.setInputType(InputType.TYPE_CLASS_NUMBER);
-        edtMatricula.setFilters(new InputFilter[]{
-                new InputFilter.LengthFilter(4)
-        });
+        edtMatricula.setFilters(new InputFilter[]{new InputFilter.LengthFilter(4)});
         layout.addView(edtMatricula);
 
-        // ➤ CÓDIGO LOCAL — preenchido e bloqueado
         EditText edtLocal = new EditText(this);
         edtLocal.setHint("Código Local");
         edtLocal.setText(localCodigoTela);
@@ -191,56 +319,41 @@ public class ListaHistoricoActivity extends AppCompatActivity {
         edtLocal.setTextColor(Color.GRAY);
         layout.addView(edtLocal);
 
-        // ➤ TAG EPC (6 dígitos)
         EditText edtTag = new EditText(this);
         edtTag.setHint("Tag EPC");
         edtTag.setInputType(InputType.TYPE_CLASS_NUMBER);
-        edtTag.setFilters(new InputFilter[]{
-                new InputFilter.LengthFilter(6)
-        });
+        edtTag.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)});
         layout.addView(edtTag);
 
         new AlertDialog.Builder(this)
                 .setTitle("Incluir novo registro")
                 .setView(layout)
                 .setPositiveButton("Salvar", (dialog, which) -> {
-
-                    String matricula = edtMatricula.getText().toString().trim();
+                    String matricula   = edtMatricula.getText().toString().trim();
                     String codigoLocal = edtLocal.getText().toString().trim();
-                    String tag = edtTag.getText().toString().trim();
+                    String tag         = edtTag.getText().toString().trim();
 
-                    // ➤ Validações
                     if (matricula.length() != 4) {
-                        Toast.makeText(this, "A matrícula deve ter 4 dígitos!", Toast.LENGTH_SHORT).show();
-                        return;
+                        Toast.makeText(this, "Matrícula deve ter 4 dígitos!", Toast.LENGTH_SHORT).show(); return;
                     }
                     if (codigoLocal.length() != 4) {
-                        Toast.makeText(this, "O código local deve ter 4 dígitos!", Toast.LENGTH_SHORT).show();
-                        return;
+                        Toast.makeText(this, "Código local deve ter 4 dígitos!", Toast.LENGTH_SHORT).show(); return;
                     }
                     if (tag.length() != 6) {
-                        Toast.makeText(this, "A Tag EPC deve ter 6 dígitos!", Toast.LENGTH_SHORT).show();
-                        return;
+                        Toast.makeText(this, "Tag EPC deve ter 6 dígitos!", Toast.LENGTH_SHORT).show(); return;
                     }
 
-                    // ➤ SALVA NO BANCO
                     db.inserirHistorico(matricula, codigoLocal, tag);
-
-                    // ➤ RECARREGA LISTA DO BANCO
                     carregarHistorico();
-
-                    // ➤ ATUALIZA O ADAPTER
-                    adapter.notifyDataSetChanged();
-
                     Toast.makeText(this, "Registro adicionado!", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Cancelar", null)
                 .show();
     }
 
-
-
-    // POPUP PARA DIGITAR E-MAIL
+    // ─────────────────────────────────────────────────────────────
+    // POPUP EMAIL (original preservado)
+    // ─────────────────────────────────────────────────────────────
     private void abrirPopupEmail(List<File> arquivos) {
         EditText input = new EditText(this);
         input.setHint("Digite o e-mail do destinatário");
@@ -252,97 +365,55 @@ public class ListaHistoricoActivity extends AppCompatActivity {
                 .setView(input)
                 .setPositiveButton("Enviar", (d, w) -> {
                     String email = input.getText().toString().trim();
-                    if (!email.isEmpty())
-                        enviarArquivosPorEmail(arquivos, email);
-                    else
-                        Toast.makeText(this, "Informe um e-mail!", Toast.LENGTH_SHORT).show();
+                    if (!email.isEmpty()) enviarArquivosPorEmail(arquivos, email);
+                    else Toast.makeText(this, "Informe um e-mail!", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Cancelar", null)
                 .show();
     }
 
-    // CARREGAR LISTA DO BANCO
-    private void carregar(String localCodigo) {
-
-        locais = new ArrayList<>();
-        matriculas = new ArrayList<>();
-        tags = new ArrayList<>();
-
-        Cursor c = db.getDados(localCodigo);
-
-        while (c.moveToNext()) {
-            locais.add(c.getString(0));
-            matriculas.add(c.getString(1));
-            tags.add(c.getString(2));
-        }
-        c.close();
-
-        adapter = new HistoricoDetalheAdapter(this, locais, matriculas, tags);
-        list.setAdapter(adapter);
-    }
-
-    // GERA TXT + EMAIL
+    // ─────────────────────────────────────────────────────────────
+    // GERAR TXT (original preservado)
+    // ─────────────────────────────────────────────────────────────
     private void gerarArquivoTXTComEmail() {
         try {
-            // Pasta de export
             File pasta = new File(getExternalFilesDir(null), "export");
             if (!pasta.exists()) pasta.mkdirs();
 
-            // Nome do arquivo
             File arquivo = new File(pasta, "Historico_" + localCodigoTela + ".txt");
             FileOutputStream fos = new FileOutputStream(arquivo);
-
-            int registrosPulados = 0; // contador de registros inválidos
+            int pulados = 0;
 
             for (int i = 0; i < tags.size(); i++) {
-                String codigoBarra = tags.get(i);
+                String codigoBarra    = tags.get(i);
                 String matriculaAtual = matriculas.get(i);
 
-                // Validação: apenas números válidos e tamanhos corretos
-                if (!isNumeroValido(codigoFilial, 3) ||
-                        !isNumeroValido(localCodigoTela, 4) ||
-                        !isNumeroValido(matriculaAtual, 8)) {
-                    registrosPulados++;
-                    continue; // pula este registro
+                if (!isNumeroValido(codigoFilial, 3)
+                        || !isNumeroValido(localCodigoTela, 4)
+                        || !isNumeroValido(matriculaAtual, 8)) {
+                    pulados++; continue;
                 }
 
-                // 🔹 Regra para pegar os 5 primeiros dígitos da tag
                 String epcLimpo;
-                if (codigoBarra.startsWith("40") && codigoBarra.length() >= 7) {
-                    // Se começa com "40" e mais 5 dígitos
+                if (codigoBarra.startsWith("40") && codigoBarra.length() >= 7)
                     epcLimpo = codigoBarra.substring(2, 7);
-                } else {
-                    // Caso contrário, pega os primeiros 5 dígitos
+                else
                     epcLimpo = codigoBarra.length() >= 5 ? codigoBarra.substring(0, 5) : codigoBarra;
-                }
 
-                // 🔹 Adiciona prefixo "040"
                 codigoBarra = "040" + epcLimpo;
 
-                // Formata filial, local e matrícula
-                String filialFmt = String.format("%03d", Integer.parseInt(codigoFilial));
-                String localFmt = String.format("%04d", Integer.parseInt(localCodigoTela));
-                String matriculaFmt = String.format("%08d", Integer.parseInt(matriculaAtual));
-
-                // Monta a linha do arquivo
-                String linha = filialFmt + " " +
-                        localFmt + "  " +
-                        matriculaFmt + "                      " +
-                        codigoBarra + "\n";
-
+                String linha = String.format("%03d", Integer.parseInt(codigoFilial)) + " "
+                        + String.format("%04d", Integer.parseInt(localCodigoTela)) + "  "
+                        + String.format("%08d", Integer.parseInt(matriculaAtual))
+                        + "                      " + codigoBarra + "\n";
                 fos.write(linha.getBytes());
             }
-
             fos.close();
 
             String msg = "TXT gerado!";
-            if (registrosPulados > 0) {
-                msg += " (" + registrosPulados + " registros inválidos foram pulados)";
-            }
-
+            if (pulados > 0) msg += " (" + pulados + " registros inválidos pulados)";
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
 
-            // Abre popup para envio de email
             abrirPopupEmail(Collections.singletonList(arquivo));
 
         } catch (Exception e) {
@@ -350,212 +421,122 @@ public class ListaHistoricoActivity extends AppCompatActivity {
         }
     }
 
-    // Método auxiliar para validar números e tamanho
-    private boolean isNumeroValido(String valor, int tamanhoEsperado) {
-        if (valor == null || valor.trim().isEmpty()) return false;
-        if (!valor.matches("\\d+")) return false; // apenas números
-        if (valor.length() > tamanhoEsperado) return false; // maior que o esperado
-        return true;
+    private boolean isNumeroValido(String valor, int max) {
+        return valor != null && !valor.trim().isEmpty()
+                && valor.matches("\\d+") && valor.length() <= max;
     }
 
-
-
-    // ----------------------------
-    // MONTA RESUMO AGRUPADO (TAG -> DESCRIÇÃO/CONTAGEM)
-    // ----------------------------
+    // ─────────────────────────────────────────────────────────────
+    // GERAR PDF (original preservado)
+    // ─────────────────────────────────────────────────────────────
     private ArrayList<ResumoItem> montarResumoInterno() {
         HashMap<String, Integer> mapa = new HashMap<>();
-
         for (String tagCompleta : tags) {
-            String tag5 = tagCompleta.length() >= 5 ? tagCompleta.substring(0, 5) : tagCompleta;
+            String tag5    = tagCompleta.length() >= 5 ? tagCompleta.substring(0, 5) : tagCompleta;
             String tagBanco = "040" + tag5;
-
-            // Usa método do DBHelper para buscar descrição (presumido existente)
             String descricao = db.getDescricaoPorTag(tagBanco);
-            if (descricao == null || descricao.trim().isEmpty())
-                descricao = "DESCONHECIDO";
-
-            Integer c = mapa.get(descricao);
-            if (c == null) mapa.put(descricao, 1);
-            else mapa.put(descricao, c + 1);
+            if (descricao == null || descricao.trim().isEmpty()) descricao = "DESCONHECIDO";
+            mapa.put(descricao, mapa.containsKey(descricao) ? mapa.get(descricao) + 1 : 1);
         }
-
         ArrayList<ResumoItem> lista = new ArrayList<>();
-        for (Map.Entry<String, Integer> e : mapa.entrySet()) {
+        for (Map.Entry<String, Integer> e : mapa.entrySet())
             lista.add(new ResumoItem(e.getKey(), e.getValue()));
-        }
-
         return lista;
     }
 
-    // GERA PDF + EMAIL (AGORA COM RESUMO)
     private void gerarPDFComEmail() {
         try {
             PdfDocument pdf = new PdfDocument();
 
-            // ====================== CAPA ============================
+            // ── Capa ──────────────────────────────────────────────
             PdfDocument.PageInfo capaInfo =
                     new PdfDocument.PageInfo.Builder(595, 842, 1).create();
-
             PdfDocument.Page capaPage = pdf.startPage(capaInfo);
             Canvas canvas = capaPage.getCanvas();
 
-            Paint paintBlue = new Paint();
-            paintBlue.setColor(Color.rgb(0, 94, 184));
-
-            Paint paintTitulo = new Paint();
-            paintTitulo.setColor(Color.WHITE);
-            paintTitulo.setTextSize(32f);
-            paintTitulo.setFakeBoldText(true);
-
-            Paint paintInfo = new Paint();
-            paintInfo.setColor(Color.WHITE);
-            paintInfo.setTextSize(18f);
+            Paint paintBlue  = new Paint(); paintBlue.setColor(Color.rgb(0, 94, 184));
+            Paint paintBranco= new Paint(); paintBranco.setColor(Color.WHITE); paintBranco.setTextSize(32f); paintBranco.setFakeBoldText(true);
+            Paint paintInfo  = new Paint(); paintInfo.setColor(Color.WHITE);  paintInfo.setTextSize(18f);
 
             canvas.drawRect(0, 0, 595, 842, paintBlue);
 
             Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.ic_sebrae_branco);
             Bitmap logoGrande = Bitmap.createScaledBitmap(logo, 260, 80, true);
-            canvas.drawBitmap(logoGrande, (595 - logoGrande.getWidth()) / 2, 120, null);
+            canvas.drawBitmap(logoGrande, (595 - logoGrande.getWidth()) / 2f, 120, null);
 
-            canvas.drawText("Histórico de Leitura RFID", 100, 260, paintTitulo);
-
+            canvas.drawText("Histórico de Leitura RFID", 100, 260, paintBranco);
             int yCapa = 340;
             canvas.drawText("Local: " + localCodigoTela, 60, yCapa, paintInfo); yCapa += 30;
-            canvas.drawText("Total de Tags Lidas: " + tags.size(), 60, yCapa, paintInfo); yCapa += 30;
+            canvas.drawText("Total de Tags: " + tags.size(), 60, yCapa, paintInfo); yCapa += 30;
+            canvas.drawText("Gerado em: " + new SimpleDateFormat("dd/MM/yyyy HH:mm").format(new Date()), 60, yCapa, paintInfo);
 
-            String dataGeracao = new SimpleDateFormat("dd/MM/yyyy HH:mm").format(new Date());
-            canvas.drawText("Gerado em: " + dataGeracao, 60, yCapa, paintInfo);
-
-            Paint rodape = new Paint();
-            rodape.setColor(Color.WHITE);
-            rodape.setTextSize(14f);
-            canvas.drawText("SEBRAE © " + new SimpleDateFormat("yyyy").format(new Date()),
-                    240, 810, rodape);
-
+            Paint rodape = new Paint(); rodape.setColor(Color.WHITE); rodape.setTextSize(14f);
+            canvas.drawText("SEBRAE © " + new SimpleDateFormat("yyyy").format(new Date()), 240, 810, rodape);
             pdf.finishPage(capaPage);
 
-            // ==================== RESUMO (AGRUPO) ===========================
+            // ── Resumo ────────────────────────────────────────────
             PdfDocument.PageInfo pageInfo =
                     new PdfDocument.PageInfo.Builder(595, 842, 2).create();
-
             PdfDocument.Page page = pdf.startPage(pageInfo);
             canvas = page.getCanvas();
 
-            Paint paintTexto = new Paint();
-            paintTexto.setColor(Color.BLACK);
-            paintTexto.setTextSize(16f);
+            Paint paintTexto  = new Paint(); paintTexto.setColor(Color.BLACK);  paintTexto.setTextSize(16f);
+            Paint paintHeader = new Paint(); paintHeader.setColor(Color.rgb(220,220,220));
+            Paint paintZebra  = new Paint(); paintZebra.setColor(Color.rgb(240,240,240));
+            Paint paintTit    = new Paint(); paintTit.setColor(Color.BLACK); paintTit.setTextSize(22f); paintTit.setFakeBoldText(true);
+            Paint paintLinha  = new Paint(); paintLinha.setColor(Color.BLACK); paintLinha.setStrokeWidth(2);
 
-            Paint paintHeader = new Paint();
-            paintHeader.setColor(Color.rgb(220, 220, 220));
-
-            Paint paintZebra = new Paint();
-            paintZebra.setColor(Color.rgb(240, 240, 240));
-
-            Paint paintTituloPg = new Paint();
-            paintTituloPg.setColor(Color.BLACK);
-            paintTituloPg.setTextSize(22f);
-            paintTituloPg.setFakeBoldText(true);
-
-            Paint paintLinha = new Paint();
-            paintLinha.setColor(Color.BLACK);
-            paintLinha.setStrokeWidth(2);
-
-            canvas.drawText("Resumo do Inventário", 180, 70, paintTituloPg);
-
+            canvas.drawText("Resumo do Inventário", 180, 70, paintTit);
             int y = 110;
-
-            // Cabeçalho da tabela resumo
-            canvas.drawRect(40, y - 25, 555, y + 5, paintHeader);
+            canvas.drawRect(40, y-25, 555, y+5, paintHeader);
             canvas.drawText("Qtd", 60, y, paintTexto);
             canvas.drawText("Descrição", 150, y, paintTexto);
+            y += 25; canvas.drawLine(40, y, 555, y, paintLinha); y += 20;
 
-            y += 25;
-            canvas.drawLine(40, y, 555, y, paintLinha);
-            y += 20;
-
-            boolean zebra = false;
-            int paginaAtual = 2;
-
+            boolean zebra = false; int paginaAtual = 2; int totalGeral = 0;
             ArrayList<ResumoItem> resumo = montarResumoInterno();
-            int totalGeral = 0;
 
             for (ResumoItem item : resumo) {
-
-                if (zebra)
-                    canvas.drawRect(40, y - 18, 555, y + 10, paintZebra);
-
+                if (zebra) canvas.drawRect(40, y-18, 555, y+10, paintZebra);
                 zebra = !zebra;
 
-                String descricao = item.getDescricao();
-                if (descricao.length() > 48) descricao = descricao.substring(0, 48) + "...";
-
+                String desc = item.getDescricao();
+                if (desc.length() > 48) desc = desc.substring(0, 48) + "...";
                 canvas.drawText(String.valueOf(item.getQuantidade()), 60, y, paintTexto);
-                canvas.drawText(descricao, 150, y, paintTexto);
-
+                canvas.drawText(desc, 150, y, paintTexto);
                 totalGeral += item.getQuantidade();
-
                 y += 28;
 
                 if (y > 760) {
-                    Paint rodapePag = new Paint();
-                    rodapePag.setColor(Color.GRAY);
-                    rodapePag.setTextSize(12f);
-
-                    canvas.drawText("Página " + paginaAtual, 500, 820, rodapePag);
-
-                    pdf.finishPage(page);
-                    paginaAtual++;
-
-                    page = pdf.startPage(pageInfo);
-                    canvas = page.getCanvas();
-
-                    // redesenha título na nova página (opcional)
-                    canvas.drawText("Resumo do Inventário (continuação)", 160, 70, paintTituloPg);
+                    Paint rp = new Paint(); rp.setColor(Color.GRAY); rp.setTextSize(12f);
+                    canvas.drawText("Página " + paginaAtual, 500, 820, rp);
+                    pdf.finishPage(page); paginaAtual++;
+                    page = pdf.startPage(pageInfo); canvas = page.getCanvas();
+                    canvas.drawText("Resumo (continuação)", 160, 70, paintTit);
                     y = 110;
-                    canvas.drawRect(40, y - 25, 555, y + 5, paintHeader);
+                    canvas.drawRect(40, y-25, 555, y+5, paintHeader);
                     canvas.drawText("Qtd", 60, y, paintTexto);
                     canvas.drawText("Descrição", 150, y, paintTexto);
-                    y += 25;
-                    canvas.drawLine(40, y, 555, y, paintLinha);
-                    y += 20;
+                    y += 25; canvas.drawLine(40, y, 555, y, paintLinha); y += 20;
                 }
             }
 
-            // total geral
-            y += 10;
-            canvas.drawLine(40, y, 555, y, paintLinha);
-            y += 28;
-
-            Paint paintTotal = new Paint();
-            paintTotal.setColor(Color.BLACK);
-            paintTotal.setTextSize(18f);
-            paintTotal.setFakeBoldText(true);
+            y += 10; canvas.drawLine(40, y, 555, y, paintLinha); y += 28;
+            Paint paintTotal = new Paint(); paintTotal.setColor(Color.BLACK); paintTotal.setTextSize(18f); paintTotal.setFakeBoldText(true);
             canvas.drawText("TOTAL GERAL: " + totalGeral + " itens", 60, y, paintTotal);
 
-            Paint rodapeFinal = new Paint();
-            rodapeFinal.setColor(Color.GRAY);
-            rodapeFinal.setTextSize(12f);
-            canvas.drawText("Página " + paginaAtual, 500, 820, rodapeFinal);
-
+            Paint rpFinal = new Paint(); rpFinal.setColor(Color.GRAY); rpFinal.setTextSize(12f);
+            canvas.drawText("Página " + paginaAtual, 500, 820, rpFinal);
             pdf.finishPage(page);
 
-            // SALVAR PDF
             File pasta = new File(getExternalFilesDir(null), "export");
             if (!pasta.exists()) pasta.mkdirs();
-
             File arquivo = new File(pasta, "Historico_RFID_" + localCodigoTela + ".pdf");
-
             FileOutputStream fos = new FileOutputStream(arquivo);
-            pdf.writeTo(fos);
-
-            pdf.close();
-            fos.close();
-
-            ultimoArquivoGerado = arquivo; // para uso posterior se quiser enviar rápido
+            pdf.writeTo(fos); pdf.close(); fos.close();
+            ultimoArquivoGerado = arquivo;
 
             Toast.makeText(this, "PDF gerado com sucesso!", Toast.LENGTH_LONG).show();
-
             abrirPopupEmail(Collections.singletonList(arquivo));
 
         } catch (Exception e) {
@@ -563,11 +544,12 @@ public class ListaHistoricoActivity extends AppCompatActivity {
         }
     }
 
-    // ENVIO DE E-MAIL (ACEITA TXT + PDF)
+    // ─────────────────────────────────────────────────────────────
+    // ENVIO EMAIL (original preservado)
+    // ─────────────────────────────────────────────────────────────
     private void enviarArquivosPorEmail(List<File> arquivos, String destinatario) {
-
         String usuario = "smartmailbuilding@gmail.com";
-        String senha = "ebzzwrvykwihempj";
+        String senha   = "ebzzwrvykwihempj";
 
         emailExecutor.execute(() -> {
             try {
@@ -579,8 +561,7 @@ public class ListaHistoricoActivity extends AppCompatActivity {
                 props.put("mail.smtp.port", "465");
 
                 Session session = Session.getInstance(props, new Authenticator() {
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
+                    @Override protected PasswordAuthentication getPasswordAuthentication() {
                         return new PasswordAuthentication(usuario, senha);
                     }
                 });
@@ -591,55 +572,59 @@ public class ListaHistoricoActivity extends AppCompatActivity {
                 message.setSubject("Inventário RFID - Local " + localCodigoTela);
 
                 MimeMultipart multipart = new MimeMultipart();
-
-                // Corpo
                 MimeBodyPart corpo = new MimeBodyPart();
                 corpo.setText("Segue arquivo(s) gerado(s) pelo inventário RFID.");
                 multipart.addBodyPart(corpo);
 
-                // Anexos
                 for (File arquivo : arquivos) {
                     MimeBodyPart anexo = new MimeBodyPart();
                     anexo.setDataHandler(new DataHandler(new FileDataSource(arquivo)));
                     anexo.setFileName(arquivo.getName());
                     multipart.addBodyPart(anexo);
                 }
-
                 message.setContent(multipart);
-
-                // ENVIO
                 Transport.send(message);
 
-                // 🔔 TOAST AQUI — no thread principal
-                mainHandler.post(() -> Toast.makeText(
-                        ListaHistoricoActivity.this,
-                        "📨 E-mail enviado com sucesso!",
-                        Toast.LENGTH_LONG
-                ).show());
+                mainHandler.post(() -> Toast.makeText(this,
+                        "E-mail enviado com sucesso!", Toast.LENGTH_LONG).show());
 
             } catch (Exception e) {
-
-                mainHandler.post(() -> Toast.makeText(
-                        ListaHistoricoActivity.this,
-                        "❌ Erro ao enviar: " + e.getMessage(),
-                        Toast.LENGTH_LONG
-                ).show());
+                mainHandler.post(() -> Toast.makeText(this,
+                        "Erro ao enviar: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         });
     }
 
-    // opcional: método rápido para compartilhar via intent usando FileProvider
     private void compartilharPdfViaIntent(File arquivo) {
         try {
-            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", arquivo);
+            Uri uri = FileProvider.getUriForFile(this,
+                    getPackageName() + ".provider", arquivo);
             Intent share = new Intent(Intent.ACTION_SEND);
             share.setType("application/pdf");
             share.putExtra(Intent.EXTRA_STREAM, uri);
             share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(Intent.createChooser(share, "Enviar PDF via"));
         } catch (Exception e) {
-            Toast.makeText(this, "Erro ao compartilhar: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Erro ao compartilhar: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────
+    private String safeStr(Cursor c, String col) {
+        try {
+            int idx = c.getColumnIndex(col);
+            return idx >= 0 && !c.isNull(idx) ? c.getString(idx) : "";
+        } catch (Exception e) { return ""; }
+    }
+
+    private int safeInt(Cursor c, String col) {
+        try {
+            int idx = c.getColumnIndex(col);
+            return idx >= 0 && !c.isNull(idx) ? c.getInt(idx) : -1;
+        } catch (Exception e) { return -1; }
     }
 
     @Override
@@ -648,22 +633,14 @@ public class ListaHistoricoActivity extends AppCompatActivity {
         emailExecutor.shutdown();
     }
 
-    // ---- CLASSE INTERNA PARA ITENS DO RESUMO ----
+    // ─────────────────────────────────────────────────────────────
+    // MODELO INTERNO
+    // ─────────────────────────────────────────────────────────────
     private static class ResumoItem {
         private final String descricao;
-        private final int quantidade;
-
-        ResumoItem(String descricao, int quantidade) {
-            this.descricao = descricao;
-            this.quantidade = quantidade;
-        }
-
-        String getDescricao() {
-            return descricao;
-        }
-
-        int getQuantidade() {
-            return quantidade;
-        }
+        private final int    quantidade;
+        ResumoItem(String d, int q) { descricao = d; quantidade = q; }
+        String getDescricao()  { return descricao;  }
+        int    getQuantidade() { return quantidade; }
     }
 }

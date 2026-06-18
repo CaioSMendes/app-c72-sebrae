@@ -18,31 +18,34 @@ public class InventarioActivity extends AppCompatActivity {
     private LinearLayout buttonPesquisar;
     private DBHelper dbHelper;
 
-    private String tipoLeitura; // <-- RECEBE RFID ou CODBARRA
+    private String tipoLeitura;    // "RFID" ou "CODBARRA"
+    private String tipoInventario; // "LIVRE" | "LOCAL" | "CATEGORIA"
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inventario);
 
-        editCodigoFilial = findViewById(R.id.editCodigoFilial);
-        editCodigoLocal = findViewById(R.id.editCodigoLocal);
+        editCodigoFilial     = findViewById(R.id.editCodigoFilial);
+        editCodigoLocal      = findViewById(R.id.editCodigoLocal);
         editChapaFuncionario = findViewById(R.id.editChapaFuncionario);
-        buttonPesquisar = findViewById(R.id.buttonPesquisar);
+        buttonPesquisar      = findViewById(R.id.buttonPesquisar);
 
         dbHelper = new DBHelper(this);
 
-        // RECEBE O TIPO DE LEITURA ENVIADO PELA OpcaoActivity
-        tipoLeitura = getIntent().getStringExtra("tipoLeitura");
+        tipoLeitura    = getIntent().getStringExtra("tipoLeitura");
+        tipoInventario = getIntent().getStringExtra("tipoInventario");
+        if (tipoInventario == null) tipoInventario = "LIVRE"; // fallback seguro
 
         buttonPesquisar.setOnClickListener(v -> verificarCampos());
     }
 
     private void verificarCampos() {
-        String codigoFilial = editCodigoFilial.getText().toString().trim();
-        String codigoLocal = editCodigoLocal.getText().toString().trim();
+        String codigoFilial     = editCodigoFilial.getText().toString().trim();
+        String codigoLocal      = editCodigoLocal.getText().toString().trim();
         String chapaFuncionario = editChapaFuncionario.getText().toString().trim();
 
+        // ── Validações de preenchimento ───────────────────────────────────
         if (codigoFilial.isEmpty() || codigoLocal.isEmpty() || chapaFuncionario.isEmpty()) {
             mostrarAlerta("Preencha todos os campos!");
             return;
@@ -53,19 +56,18 @@ public class InventarioActivity extends AppCompatActivity {
             return;
         }
 
+        // ── Validações no banco ───────────────────────────────────────────
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
         Cursor cursorLocal = db.rawQuery(
                 "SELECT * FROM locais WHERE codigo_local = ?",
-                new String[]{codigoLocal}
-        );
+                new String[]{ codigoLocal });
         boolean localExiste = cursorLocal.moveToFirst();
         cursorLocal.close();
 
         Cursor cursorUsuario = db.rawQuery(
                 "SELECT * FROM usuarios WHERE matricula = ?",
-                new String[]{chapaFuncionario}
-        );
+                new String[]{ chapaFuncionario });
         boolean funcionarioExiste = cursorUsuario.moveToFirst();
         cursorUsuario.close();
 
@@ -81,24 +83,34 @@ public class InventarioActivity extends AppCompatActivity {
             return;
         }
 
-        // ✅ Escolhe a próxima tela de acordo com o tipo de leitura
+        // ── Roteamento ────────────────────────────────────────────────────
         Intent intent;
 
-        if ("RFID".equals(tipoLeitura)) {
-            intent = new Intent(this, ConsultaTagActivity.class);
-        }
-        else if ("CODBARRA".equals(tipoLeitura)) {
-            intent = new Intent(this, InventarioCodBarraActivity.class); // nova activity
-        }
-        else {
-            mostrarAlerta("Tipo de leitura inválido.");
-            return;
+        if ("CODBARRA".equals(tipoLeitura)) {
+            // Código de barras sempre vai para InventarioCodBarraActivity
+            intent = new Intent(this, InventarioCodBarraActivity.class);
+
+        } else {
+            // RFID → escolhe o modo de inventário
+            switch (tipoInventario) {
+                case "LOCAL":
+                    intent = new Intent(this, InventarioLocalActivity.class);
+                    break;
+                case "CATEGORIA":
+                    intent = new Intent(this, InventarioCategoriaActivity.class);
+                    break;
+                default: // "LIVRE" → comportamento original
+                    intent = new Intent(this, InventarioLivreActivity.class);
+                    break;
+            }
         }
 
-        intent.putExtra("codigoFilial", codigoFilial);
-        intent.putExtra("codigoLocal", codigoLocal);
+        // ── Repassa os campos para a Activity de destino ──────────────────
+        intent.putExtra("codigoFilial",     codigoFilial);
+        intent.putExtra("codigoLocal",      codigoLocal);
         intent.putExtra("chapaFuncionario", chapaFuncionario);
-        intent.putExtra("tipoLeitura", tipoLeitura);
+        intent.putExtra("tipoLeitura",      tipoLeitura);
+        intent.putExtra("tipoInventario",   tipoInventario);
 
         startActivity(intent);
     }
