@@ -264,29 +264,26 @@ public class ListaHistoricoActivity extends AppCompatActivity {
                 case "LOCAL":
                     txtTipo.setText("Local");
                     txtTipo.setBackgroundResource(R.drawable.bg_badge_verde);
-                    imgIcon.setColorFilter(Color.parseColor("#2E7D32"));
+                    txtTipo.setTextColor(Color.WHITE);
                     break;
                 case "CATEGORIA":
                     txtTipo.setText("Categoria");
                     txtTipo.setBackgroundResource(R.drawable.bg_badge_azul);
-                    imgIcon.setColorFilter(Color.parseColor("#005eb8"));
+                    txtTipo.setTextColor(Color.WHITE);
                     break;
                 case "CODBARRA":
                 case "CODBARRAS":
                     txtTipo.setText("Cód.Barras");
-                    txtTipo.setBackgroundTintList(
-                            android.content.res.ColorStateList.valueOf(
-                                    Color.parseColor("#E65100")));
-                    imgIcon.setColorFilter(Color.parseColor("#E65100"));
+                    txtTipo.setBackgroundResource(R.drawable.bg_badge_laranja);
+                    txtTipo.setTextColor(Color.WHITE);
                     break;
                 default:
                     txtTipo.setText("Livre");
-                    txtTipo.setBackgroundTintList(
-                            android.content.res.ColorStateList.valueOf(
-                                    Color.parseColor("#546E7A")));
-                    imgIcon.setColorFilter(Color.parseColor("#546E7A"));
+                    txtTipo.setBackgroundResource(R.drawable.bg_badge_cinza);
+                    txtTipo.setTextColor(Color.WHITE);
                     break;
             }
+            imgIcon.clearColorFilter(); // ← ícone natural
 
             // Destaca item selecionado
             convertView.setBackgroundColor(

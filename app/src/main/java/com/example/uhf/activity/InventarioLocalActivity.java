@@ -15,17 +15,16 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.uhf.R;
 import com.example.uhf.model.Local;
@@ -37,10 +36,12 @@ import com.rscja.deviceapi.RFIDWithUHFUART;
 import com.rscja.deviceapi.entity.UHFTAGInfo;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,77 +50,131 @@ public class InventarioLocalActivity extends AppCompatActivity {
 
     private static final String TAG = "InventarioLocal";
 
-    // ── Estados de item ───────────────────────────────────────
-    private static final int ESTADO_PENDENTE       = 0; // cinza
-    private static final int ESTADO_ENCONTRADO     = 1; // verde
-    private static final int ESTADO_NAO_ENCONTRADO = 2; // vermelho
+    private static final int ESTADO_PENDENTE = 0;
+    private static final int ESTADO_ENCONTRADO = 1;
+    private static final int ESTADO_NAO_ENCONTRADO = 2;
 
-    // ── Leitores ──────────────────────────────────────────────
+    private static final int FILTRO_TODOS = 0;
+    private static final int FILTRO_IDENTIFICADOS = 1;
+    private static final int FILTRO_NAO_IDENTIFICADOS = 2;
+    private static final int FILTRO_FORA_DO_LOCAL = 3;
+
+    private int filtroAtual = FILTRO_TODOS;
+    private String textoBuscaAtual = "";
+
     private RFIDWithUHFUART mReader;
-    private BarcodeDecoder  barcodeDecoder;
+    private BarcodeDecoder barcodeDecoder;
 
     private volatile boolean isReadingRFID = false;
-    private volatile boolean isReading2D   = false;
-    private volatile boolean modoRfid      = true;
+    private volatile boolean isReading2D = false;
+    private volatile boolean modoRfid = true;
 
-    private final Handler        mainHandler     = new Handler(Looper.getMainLooper());
-    private final ExecutorService executor        = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final ExecutorService barcodeExecutor = Executors.newSingleThreadExecutor();
+
     private ToneGenerator toneGen;
 
-    // ── Dados ─────────────────────────────────────────────────
     private DBHelper dbHelper;
-    private String codigoFilial, codigoLocal, chapaFuncionario;
-    private Local   localBanco;
+    private String codigoFilial;
+    private String codigoLocal;
+    private String chapaFuncionario;
+
+    private Local localBanco;
     private Usuario userBanco;
 
     private List<Patrimonio> todosPatrimonios = new ArrayList<>();
-    private List<Patrimonio> listaFiltrada    = new ArrayList<>();
+    private final List<Patrimonio> listaFiltrada = new ArrayList<>();
 
-    // codigoBarra → estado
     private final Map<String, Integer> estadoPatrimonios = new HashMap<>();
 
-    // Ordem de leitura dos patrimônios do local (codigoBarra, mais recente primeiro)
+    // Últimos patrimônios lidos ficam no topo.
     private final List<String> ordemLeitura = new ArrayList<>();
 
-    // Tags lidas que NÃO estão no cadastro deste local
-    // chave = chave5; valor = objeto com info completa
-    private final java.util.LinkedHashMap<String, InfoTagFora> tagsForaDoLocal = new java.util.LinkedHashMap<>();
-    // Chaves aceitas pelo usuário como "entrada"
+    // Tags lidas que não pertencem ao local atual.
+    private final LinkedHashMap<String, InfoTagFora> tagsForaDoLocal =
+            new LinkedHashMap<>();
+
+    // Tags fora do local aceitas manualmente.
     private final Set<String> tagForaAceitas = new HashSet<>();
 
-    /** Info de uma tag lida que não pertence a este local */
+    /** chave5 -> patrimônio deste local. Evita varrer todosPatrimonios a cada tag lida. */
+    private final Map<String, Patrimonio> indicePatrimonioPorChave = new HashMap<>();
+
+    /**
+     * chave5 -> patrimônio em qualquer local. Montado uma única vez em
+     * background, só para descrever tags "fora do local" sem bater no
+     * banco a cada leitura.
+     */
+    private final Map<String, Patrimonio> indiceGlobalPorChave = new HashMap<>();
+
+    /** Espera para agrupar leituras em rajada antes de redesenhar a lista. */
+    private static final long JANELA_FLUSH = 250L;
+
+    private volatile boolean flushAgendado = false;
+    private volatile boolean pendenteScrollIdentificado = false;
+    private volatile boolean pendenteScrollForaLocal = false;
+
     private static class InfoTagFora {
-        final String codigoExibido; // "04012345"
-        final String descricao;     // descrição do patrimônio no banco (ou vazio se desconhecido)
-        final String localOrigem;   // nome do local onde este patrimônio pertence (ou vazio)
-        InfoTagFora(String codigoExibido, String descricao, String localOrigem) {
+        final String codigoExibido;
+        final String descricao;
+        final String localOrigem;
+
+        InfoTagFora(
+                String codigoExibido,
+                String descricao,
+                String localOrigem
+        ) {
             this.codigoExibido = codigoExibido;
-            this.descricao     = descricao;
-            this.localOrigem   = localOrigem;
+            this.descricao = descricao;
+            this.localOrigem = localOrigem;
         }
     }
 
-    // ── Views ─────────────────────────────────────────────────
     private PatrimonioLocalAdapter adapter;
-    private ListView  listView;
-    private TextView  tvContador, txtInfoTopo, txtInfoUser, txtBotao, txtModoToggle;
-    private LinearLayout btnLer, btnConcluir, btnDistancia, btnResumo, btnHistorico, btnModoToggle, btnLimpar;
+    private RecyclerView recyclerLocal;
+
+    // tvContador removido — id tvContadorLocal não existe no layout
+    private TextView txtInfoTopo;
+    private TextView txtInfoUser;
+    private TextView txtBotao;
+    private TextView txtModoToggle;
+
+    private TextView txtQtdTodos;
+    private TextView txtQtdIdentificados;
+    private TextView txtQtdNaoIdentificados;
+    private TextView txtQtdForaDoLocal;
+
+    private LinearLayout btnLer;
+    private LinearLayout btnConcluir;
+    private LinearLayout btnDistancia;
+    private LinearLayout btnResumo;
+    private LinearLayout btnHistorico;
+    private LinearLayout btnModoToggle;
+    private LinearLayout btnLimpar;
+
+    private LinearLayout btnFiltroTodos;
+    private LinearLayout btnFiltroIdentificados;
+    private LinearLayout btnFiltroNaoIdentificados;
+    private LinearLayout btnFiltroForaDoLocal;
+
     private EditText etBusca;
 
-    // ────────────────────────────────────────────────────────────
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inventario_local);
 
-        dbHelper         = new DBHelper(this);
-        codigoFilial     = getIntent().getStringExtra("codigoFilial");
-        codigoLocal      = getIntent().getStringExtra("codigoLocal");
+        dbHelper = new DBHelper(this);
+
+        codigoFilial = getIntent().getStringExtra("codigoFilial");
+        codigoLocal = getIntent().getStringExtra("codigoLocal");
         chapaFuncionario = getIntent().getStringExtra("chapaFuncionario");
-        localBanco       = dbHelper.buscarLocalPorCodigo(codigoLocal);
-        userBanco        = dbHelper.buscarUsuarioPorMatricula(chapaFuncionario);
-        toneGen          = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+
+        localBanco = dbHelper.buscarLocalPorCodigo(codigoLocal);
+        userBanco = dbHelper.buscarUsuarioPorMatricula(chapaFuncionario);
+
+        toneGen = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
 
         vincularViews();
         carregarPatrimonios();
@@ -128,99 +183,244 @@ public class InventarioLocalActivity extends AppCompatActivity {
         inicializarRFID();
         inicializarBarcode2D();
         atualizarBotaoModo();
+        atualizarVisualFiltro();
     }
 
-    // ── Views ─────────────────────────────────────────────────
     private void vincularViews() {
-        listView      = findViewById(R.id.listViewLocal);
-        tvContador    = findViewById(R.id.tvContadorLocal);
-        txtInfoTopo   = findViewById(R.id.txtInfoTopoLocal);
-        txtInfoUser   = findViewById(R.id.txtInfoUserLocal);
-        txtBotao      = findViewById(R.id.txtBotaoLocal);
-        btnLer        = findViewById(R.id.btnLerLocal);
-        btnConcluir   = findViewById(R.id.btnConcluirLocal);
-        btnDistancia  = findViewById(R.id.btnDistanciaLocal);
-        btnResumo     = findViewById(R.id.btnResumoLocal);
-        btnHistorico  = findViewById(R.id.btnHistoricoLocal);
-        etBusca       = findViewById(R.id.etBuscaLocal);
-        btnModoToggle = findViewById(R.id.btnModoToggleLocal);
-        txtModoToggle = findViewById(R.id.txtModoToggleLocal);
-        btnLimpar     = findViewById(R.id.btnLimparLocal);
+        recyclerLocal = findViewById(R.id.listViewLocal);
 
-        txtInfoTopo.setText(localBanco != null && userBanco != null
-                ? localBanco.getLocalNome() + " | " + userBanco.getNome()
-                : "Dados não encontrados.");
-        txtInfoUser.setText(codigoFilial + " | " + codigoLocal + " | " + chapaFuncionario);
+        // LINHA REMOVIDA: tvContador = findViewById(R.id.tvContadorLocal);
+        // O id tvContadorLocal não existe no layout XML.
+
+        txtInfoTopo = findViewById(R.id.txtInfoTopoLocal);
+        txtInfoUser = findViewById(R.id.txtInfoUserLocal);
+        txtBotao = findViewById(R.id.txtBotaoLocal);
+        txtModoToggle = findViewById(R.id.txtModoToggleLocal);
+
+        btnLer = findViewById(R.id.btnLerLocal);
+        btnConcluir = findViewById(R.id.btnConcluirLocal);
+        btnDistancia = findViewById(R.id.btnDistanciaLocal);
+        btnResumo = findViewById(R.id.btnResumoLocal);
+        btnHistorico = findViewById(R.id.btnHistoricoLocal);
+        btnModoToggle = findViewById(R.id.btnModoToggleLocal);
+        btnLimpar = findViewById(R.id.btnLimparLocal);
+
+        btnFiltroTodos = findViewById(R.id.btnFiltroTodos);
+        btnFiltroIdentificados = findViewById(R.id.btnFiltroIdentificados);
+        btnFiltroForaDoLocal = findViewById(R.id.btnFiltroForaDoLocal);
+        btnFiltroNaoIdentificados = findViewById(R.id.btnFiltroNaoIdentificados);
+
+        txtQtdTodos = findViewById(R.id.txtQtdTodos);
+        txtQtdIdentificados = findViewById(R.id.txtQtdIdentificados);
+        txtQtdForaDoLocal = findViewById(R.id.txtQtdForaDoLocal);
+        txtQtdNaoIdentificados = findViewById(R.id.txtQtdNaoIdentificados);
+
+        etBusca = findViewById(R.id.etBuscaLocal);
+
+        txtInfoTopo.setText(
+                localBanco != null && userBanco != null
+                        ? localBanco.getLocalNome() + " | " + userBanco.getNome()
+                        : "Dados não encontrados."
+        );
+
+        txtInfoUser.setText(
+                codigoFilial + " | " + codigoLocal + " | " + chapaFuncionario
+        );
     }
 
-    // ── Dados ─────────────────────────────────────────────────
     private void carregarPatrimonios() {
         todosPatrimonios = dbHelper.listarPatrimoniosPorLocal(codigoLocal);
+
         estadoPatrimonios.clear();
         ordemLeitura.clear();
-        for (Patrimonio p : todosPatrimonios)
-            estadoPatrimonios.put(p.getCodigoBarra(), ESTADO_PENDENTE);
+        tagsForaDoLocal.clear();
+        tagForaAceitas.clear();
+        indicePatrimonioPorChave.clear();
+
+        for (Patrimonio patrimonio : todosPatrimonios) {
+            estadoPatrimonios.put(
+                    patrimonio.getCodigoBarra(),
+                    ESTADO_PENDENTE
+            );
+
+            String chave5 = obterChave5(patrimonio.getCodigoBarra());
+
+            if (chave5 != null) {
+                indicePatrimonioPorChave.put(chave5, patrimonio);
+            }
+        }
+
         listaFiltrada.clear();
         listaFiltrada.addAll(todosPatrimonios);
+
         adapter = new PatrimonioLocalAdapter();
-        listView.setAdapter(adapter);
-        atualizarContador();
+
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        recyclerLocal.setLayoutManager(layoutManager);
+        recyclerLocal.setNestedScrollingEnabled(true);
+        recyclerLocal.setHasFixedSize(true);
+        recyclerLocal.setItemViewCacheSize(20);
+        recyclerLocal.setItemAnimator(null);
+        recyclerLocal.setAdapter(adapter);
+
+        filtrar("");
+
+        // Índice de TODOS os patrimônios (qualquer local), montado uma única
+        // vez em background — usado só para descrever tags "fora do local"
+        // sem consultar o banco inteiro a cada leitura.
+        carregarIndiceGlobal();
+    }
+
+    private void carregarIndiceGlobal() {
+        executor.execute(() -> {
+            Map<String, Patrimonio> indice = new HashMap<>();
+
+            for (Patrimonio patrimonio : dbHelper.listarPatrimonios()) {
+                String chave5 = obterChave5(patrimonio.getCodigoBarra());
+
+                if (chave5 != null && !indice.containsKey(chave5)) {
+                    indice.put(chave5, patrimonio);
+                }
+            }
+
+            // Mesma thread única do executor que processa as leituras,
+            // então não há corrida com processarCodigo().
+            indiceGlobalPorChave.clear();
+            indiceGlobalPorChave.putAll(indice);
+        });
+    }
+
+    private String obterChave5(String codigoBarra) {
+        if (codigoBarra == null) {
+            return null;
+        }
+
+        String normalizado = normalizarCodigo(codigoBarra);
+        return normalizado.length() < 5 ? null : normalizado.substring(0, 5);
     }
 
     private void configurarBusca() {
         etBusca.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
-            @Override public void onTextChanged(CharSequence s, int st, int b, int c) { filtrar(s.toString()); }
-            @Override public void afterTextChanged(Editable s) {}
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filtrar(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
         });
     }
 
-    private void filtrar(String query) {
-        listaFiltrada.clear();
-        if (query == null || query.trim().isEmpty()) {
-            listaFiltrada.addAll(todosPatrimonios);
-        } else {
-            String q = query.toLowerCase().trim();
-            for (Patrimonio p : todosPatrimonios) {
-                if (p.getDescricao().toLowerCase().contains(q)
-                        || p.getCodigoBarra().toLowerCase().contains(q)
-                        || p.getPatrimonio().toLowerCase().contains(q))
-                    listaFiltrada.add(p);
-            }
-        }
-        adapter.notifyDataSetChanged();
-        atualizarContador();
-    }
-
-    // ── Listeners ─────────────────────────────────────────────
     private void configurarListeners() {
         btnLer.setOnClickListener(v -> alternarLeitura());
         btnModoToggle.setOnClickListener(v -> trocarModo());
         btnDistancia.setOnClickListener(v -> abrirSelecionadorDeDistancia());
         btnResumo.setOnClickListener(v -> abrirResumo());
+        btnHistorico.setOnClickListener(v ->
+                startActivity(new Intent(this, HistoricoActivity.class))
+        );
+        btnLimpar.setOnClickListener(v -> confirmarLimpeza());
+
+        btnFiltroTodos.setOnClickListener(v -> selecionarFiltro(FILTRO_TODOS));
+        btnFiltroIdentificados.setOnClickListener(v -> selecionarFiltro(FILTRO_IDENTIFICADOS));
+        btnFiltroNaoIdentificados.setOnClickListener(v -> selecionarFiltro(FILTRO_NAO_IDENTIFICADOS));
+        btnFiltroForaDoLocal.setOnClickListener(v -> selecionarFiltro(FILTRO_FORA_DO_LOCAL));
 
         btnConcluir.setOnClickListener(v -> {
             List<Patrimonio> lidosList = new ArrayList<>();
-            for (Patrimonio p : todosPatrimonios)
-                if (getEstado(p) == ESTADO_ENCONTRADO) lidosList.add(p);
+
+            for (Patrimonio patrimonio : todosPatrimonios) {
+                if (getEstado(patrimonio) == ESTADO_ENCONTRADO) {
+                    lidosList.add(patrimonio);
+                }
+            }
+
             ConcluirHelper.executarPatrimonios(
-                    this, executor,
-                    codigoFilial, codigoLocal, chapaFuncionario,
-                    "LOCAL", lidosList
+                    this,
+                    executor,
+                    codigoFilial,
+                    codigoLocal,
+                    chapaFuncionario,
+                    "LOCAL",
+                    lidosList
             );
         });
+    }
 
-        btnHistorico.setOnClickListener(v ->
-                startActivity(new Intent(this, HistoricoActivity.class)));
+    private void selecionarFiltro(int filtro) {
+        filtroAtual = filtro;
+        atualizarVisualFiltro();
+        filtrar(etBusca.getText().toString());
+    }
 
-        btnLimpar.setOnClickListener(v -> confirmarLimpeza());
+    private void atualizarVisualFiltro() {
+        int azul    = Color.parseColor("#005EB8");
+        int verde   = Color.parseColor("#2E7D32");
+        int vermelho = Color.parseColor("#C62828");
+        int amarelo = Color.parseColor("#F57F17");
+        int cinza   = Color.parseColor("#E0E0E0");
+
+        btnFiltroTodos.setBackgroundTintList(ColorStateList.valueOf(
+                filtroAtual == FILTRO_TODOS ? azul : cinza));
+
+        btnFiltroIdentificados.setBackgroundTintList(ColorStateList.valueOf(
+                filtroAtual == FILTRO_IDENTIFICADOS ? verde : cinza));
+
+        btnFiltroNaoIdentificados.setBackgroundTintList(ColorStateList.valueOf(
+                filtroAtual == FILTRO_NAO_IDENTIFICADOS ? vermelho : cinza));
+
+        btnFiltroForaDoLocal.setBackgroundTintList(ColorStateList.valueOf(
+                filtroAtual == FILTRO_FORA_DO_LOCAL ? amarelo : cinza));
+    }
+
+    private void filtrar(String query) {
+        textoBuscaAtual = query == null ? "" : query.trim().toLowerCase();
+
+        listaFiltrada.clear();
+
+        if (filtroAtual != FILTRO_FORA_DO_LOCAL) {
+            for (Patrimonio patrimonio : todosPatrimonios) {
+                if (!passaNaBuscaPatrimonio(patrimonio)) continue;
+
+                int estado = getEstado(patrimonio);
+
+                boolean passouNoFiltro =
+                        filtroAtual == FILTRO_TODOS
+                                || (filtroAtual == FILTRO_IDENTIFICADOS && estado == ESTADO_ENCONTRADO)
+                                || (filtroAtual == FILTRO_NAO_IDENTIFICADOS && estado != ESTADO_ENCONTRADO);
+
+                if (passouNoFiltro) {
+                    listaFiltrada.add(patrimonio);
+                }
+            }
+        }
+
+        if (adapter != null) {
+            adapter.atualizarLista();
+        }
+
+        atualizarContador();
+    }
+
+    private boolean passaNaBuscaPatrimonio(Patrimonio patrimonio) {
+        if (textoBuscaAtual.isEmpty()) return true;
+
+        return (patrimonio.getDescricao() != null
+                && patrimonio.getDescricao().toLowerCase().contains(textoBuscaAtual))
+                || (patrimonio.getCodigoBarra() != null
+                && patrimonio.getCodigoBarra().toLowerCase().contains(textoBuscaAtual))
+                || (patrimonio.getPatrimonio() != null
+                && patrimonio.getPatrimonio().toLowerCase().contains(textoBuscaAtual));
     }
 
     private void confirmarLimpeza() {
         new android.app.AlertDialog.Builder(this)
                 .setTitle("Limpar leituras")
                 .setMessage("Deseja apagar todas as tags lidas e reiniciar o inventário?")
-                .setPositiveButton("Limpar", (d, w) -> limparTags())
+                .setPositiveButton("Limpar", (dialog, which) -> limparTags())
                 .setNegativeButton("Cancelar", null)
                 .show();
     }
@@ -228,24 +428,31 @@ public class InventarioLocalActivity extends AppCompatActivity {
     private void limparTags() {
         pararLeituraRFID();
         pararLeitura2D();
-        // Reseta todos os estados para PENDENTE
-        for (String cb : estadoPatrimonios.keySet())
-            estadoPatrimonios.put(cb, ESTADO_PENDENTE);
+
+        for (String codigoBarra : estadoPatrimonios.keySet()) {
+            estadoPatrimonios.put(codigoBarra, ESTADO_PENDENTE);
+        }
+
         ordemLeitura.clear();
         tagsForaDoLocal.clear();
         tagForaAceitas.clear();
+
         mainHandler.post(() -> {
-            adapter.notifyDataSetChanged();
-            atualizarContador();
+            filtrar(etBusca.getText().toString());
             Toast.makeText(this, "Leituras limpas!", Toast.LENGTH_SHORT).show();
         });
     }
 
-    // ── Modo ──────────────────────────────────────────────────
     private void trocarModo() {
-        if (modoRfid) pararLeituraRFID(); else pararLeitura2D();
+        if (modoRfid) {
+            pararLeituraRFID();
+        } else {
+            pararLeitura2D();
+        }
+
         modoRfid = !modoRfid;
         atualizarBotaoModo();
+
         Toast.makeText(this,
                 "Modo: " + (modoRfid ? "RFID" : "Código de Barras"),
                 Toast.LENGTH_SHORT).show();
@@ -253,10 +460,12 @@ public class InventarioLocalActivity extends AppCompatActivity {
 
     private void atualizarBotaoModo() {
         if (modoRfid) {
-            btnModoToggle.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#005eb8")));
+            btnModoToggle.setBackgroundTintList(
+                    ColorStateList.valueOf(Color.parseColor("#005EB8")));
             txtModoToggle.setText("Modo: RFID");
         } else {
-            btnModoToggle.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#388E3C")));
+            btnModoToggle.setBackgroundTintList(
+                    ColorStateList.valueOf(Color.parseColor("#388E3C")));
             txtModoToggle.setText("Modo: Cód. Barras");
         }
     }
@@ -269,58 +478,65 @@ public class InventarioLocalActivity extends AppCompatActivity {
         }
     }
 
-    // ── RFID ──────────────────────────────────────────────────
     private void inicializarRFID() {
         executor.execute(() -> {
             try {
                 mReader = RFIDWithUHFUART.getInstance();
-                if (mReader != null && mReader.init(this))
-                    mainHandler.post(() -> Toast.makeText(this, "Leitor RFID pronto", Toast.LENGTH_SHORT).show());
-            } catch (Exception e) { Log.e(TAG, "Init RFID", e); }
+                if (mReader != null && mReader.init(this)) {
+                    mainHandler.post(() ->
+                            Toast.makeText(this, "Leitor RFID pronto", Toast.LENGTH_SHORT).show());
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao inicializar RFID", e);
+            }
         });
     }
 
     private void iniciarLeituraRFID() {
-        if (isReadingRFID) return;
+        if (isReadingRFID || mReader == null) return;
+
         isReadingRFID = true;
         mainHandler.post(() -> txtBotao.setText("Parar Leitura"));
+
         executor.execute(() -> {
-            try { mReader.startInventoryTag(); loopRFID(); }
-            catch (Exception e) { pararLeituraRFID(); }
+            try {
+                mReader.startInventoryTag();
+                loopRFID();
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao iniciar RFID", e);
+                pararLeituraRFID();
+            }
         });
     }
 
     private void loopRFID() {
-        executor.execute(new Runnable() {
-            @Override public void run() {
-                if (!isReadingRFID) return;
-                try {
-                    UHFTAGInfo tagInfo = mReader.readTagFromBuffer();
-                    if (tagInfo != null) {
-                        String epcBruto = tagInfo.getEPC();
-                        // Mesma normalização do InventarioLivre que funciona:
-                        // normaliza → pega os 5 primeiros dígitos → monta "040XXXXX"
-                        String norm = normalizarCodigo(epcBruto);
-                        if (norm != null && norm.length() >= 5) {
-                            String chave5   = norm.substring(0, 5);       // "12345"
-                            String codigoMontado = "040" + chave5;        // "04012345"
-                            Log.d(TAG, "EPC bruto=" + epcBruto + " | norm=" + norm + " | montado=" + codigoMontado);
-                            processarCodigo(codigoMontado, chave5);
-                        }
+        while (isReadingRFID) {
+            try {
+                UHFTAGInfo tagInfo = mReader.readTagFromBuffer();
+                if (tagInfo != null) {
+                    String norm = normalizarCodigo(tagInfo.getEPC());
+                    if (norm != null && norm.length() >= 5) {
+                        String chave5 = norm.substring(0, 5);
+                        String codigoMontado = "040" + chave5;
+                        processarCodigo(codigoMontado, chave5);
                     }
-                } catch (Exception e) { Log.e(TAG, "Loop RFID", e); }
-                if (isReadingRFID) mainHandler.postDelayed(this, 80);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro no loop RFID", e);
             }
-        });
+        }
     }
 
     private void pararLeituraRFID() {
         isReadingRFID = false;
         mainHandler.post(() -> txtBotao.setText("Iniciar Leitura"));
-        executor.execute(() -> { try { if (mReader != null) mReader.stopInventory(); } catch (Exception ignored) {} });
+        executor.execute(() -> {
+            try {
+                if (mReader != null) mReader.stopInventory();
+            } catch (Exception ignored) {}
+        });
     }
 
-    // ── Barcode 2D ────────────────────────────────────────────
     private void inicializarBarcode2D() {
         barcodeExecutor.execute(() -> {
             try {
@@ -328,186 +544,343 @@ public class InventarioLocalActivity extends AppCompatActivity {
                 if (barcodeDecoder.open(this)) {
                     barcodeDecoder.setDecodeCallback(entity -> {
                         if (entity.getResultCode() != BarcodeDecoder.DECODE_SUCCESS) return;
-                        String raw = entity.getBarcodeData();
-                        String norm = normalizarCodigo(raw);
+
+                        String norm = normalizarCodigo(entity.getBarcodeData());
                         if (norm == null || norm.length() < 5) return;
-                        String chave5        = norm.substring(0, 5);
+
+                        String chave5 = norm.substring(0, 5);
                         String codigoMontado = "040" + chave5;
-                        Log.d(TAG, "Barcode bruto=" + raw + " | montado=" + codigoMontado);
+
                         toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 100);
                         executor.execute(() -> processarCodigo(codigoMontado, chave5));
                     });
                 }
-            } catch (Exception e) { Log.e(TAG, "Init Barcode", e); }
+            } catch (Exception e) {
+                Log.e(TAG, "Erro ao inicializar código de barras", e);
+            }
         });
     }
 
     private void iniciarLeitura2D() {
         if (isReading2D || barcodeDecoder == null) return;
+
         isReading2D = true;
         mainHandler.post(() -> txtBotao.setText("Parar Leitura"));
-        try { barcodeDecoder.startScan(); }
-        catch (Exception e) { Log.e(TAG, "Start 2D", e); isReading2D = false; }
+
+        try {
+            barcodeDecoder.startScan();
+        } catch (Exception e) {
+            Log.e(TAG, "Erro ao iniciar leitura 2D", e);
+            isReading2D = false;
+        }
     }
 
     private void pararLeitura2D() {
         if (barcodeDecoder == null) return;
+
         isReading2D = false;
         mainHandler.post(() -> txtBotao.setText("Iniciar Leitura"));
-        try { barcodeDecoder.stopScan(); } catch (Exception ignored) {}
+
+        try {
+            barcodeDecoder.stopScan();
+        } catch (Exception ignored) {}
     }
 
-    // ── Normalização — idêntica ao InventarioLivre ────────────
     private String normalizarCodigo(String valor) {
         if (valor == null) return "";
+
         String epc = valor.trim();
         if (epc.equalsIgnoreCase("null") || epc.isEmpty()) return "";
-        if (epc.startsWith("040") && epc.length() > 3) epc = epc.substring(3);
-        else if (epc.startsWith("40") && epc.length() > 2) epc = epc.substring(2);
+
+        if (epc.startsWith("040") && epc.length() > 3) {
+            epc = epc.substring(3);
+        } else if (epc.startsWith("40") && epc.length() > 2) {
+            epc = epc.substring(2);
+        }
+
         epc = epc.replaceFirst("^0+", "");
         return epc.isEmpty() ? "" : epc;
     }
 
-    // ── Processamento ─────────────────────────────────────────
     /**
-     * codigoMontado = "040" + 5 dígitos  (ex: "04012345")
-     * chave5        = os 5 dígitos        (ex: "12345")  — chave de dedup
+     * Chamado pelas threads dos leitores, sempre na thread única do
+     * executor. Usa índices O(1) em vez de varrer todosPatrimonios, e
+     * nunca consulta o banco aqui — o índice global já foi montado uma
+     * vez em carregarIndiceGlobal(). O redesenho da tela é agrupado por
+     * agendarFlush(), em vez de acontecer a cada tag.
      */
     private void processarCodigo(String codigoMontado, String chave5) {
-        // Dedup: já processado?
-        if (tagsForaDoLocal.containsKey(chave5)) return;
-        for (Patrimonio p : todosPatrimonios) {
-            if (getEstado(p) != ESTADO_PENDENTE
-                    && matchCodigoBarra(p.getCodigoBarra(), chave5)) return;
+        if (tagsForaDoLocal.containsKey(chave5)) {
+            return;
         }
 
-        // Tenta encontrar no cadastro deste local
-        Patrimonio encontrado = null;
-        for (Patrimonio p : todosPatrimonios) {
-            if (matchCodigoBarra(p.getCodigoBarra(), chave5)) {
-                encontrado = p;
-                Log.i(TAG, "Match: " + codigoMontado + " → " + p.getCodigoBarra());
-                break;
-            }
-        }
+        Patrimonio encontrado = indicePatrimonioPorChave.get(chave5);
 
         if (encontrado != null) {
-            // ✅ Pertence ao local
-            final String cbFinal = encontrado.getCodigoBarra();
-            estadoPatrimonios.put(cbFinal, ESTADO_ENCONTRADO);
-            // Insere no topo da ordem de leitura (remove se já existia, reinserindo no topo)
-            ordemLeitura.remove(cbFinal);
-            ordemLeitura.add(0, cbFinal);
-            dbHelper.salvarHistoricoComTipo(codigoFilial, codigoLocal, chapaFuncionario, cbFinal, "LOCAL");
+            if (getEstado(encontrado) == ESTADO_ENCONTRADO) {
+                return;
+            }
+
+            String codigoBarraFinal = encontrado.getCodigoBarra();
+            estadoPatrimonios.put(codigoBarraFinal, ESTADO_ENCONTRADO);
+            ordemLeitura.remove(codigoBarraFinal);
+            ordemLeitura.add(0, codigoBarraFinal);
+
+            dbHelper.salvarHistoricoComTipo(codigoFilial, codigoLocal,
+                    chapaFuncionario, codigoBarraFinal, "LOCAL");
+
             toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 80);
-            mainHandler.post(() -> { adapter.notifyDataSetChanged(); atualizarContador(); });
+
+            pendenteScrollIdentificado = true;
+            agendarFlush();
+
         } else {
-            // ⚠️ Não pertence ao local — busca info no banco global
-            Log.w(TAG, "Fora do local: " + codigoMontado);
-            String descGlobal  = "";
+            Patrimonio global = indiceGlobalPorChave.get(chave5);
+
+            String descricaoGlobal = global != null && global.getDescricao() != null
+                    ? global.getDescricao() : "";
+
             String localOrigem = "";
-            // Varre todos os patrimônios do banco para achar pela chave5
-            List<Patrimonio> todos = dbHelper.listarPatrimonios();
-            for (Patrimonio p : todos) {
-                if (matchCodigoBarra(p.getCodigoBarra(), chave5)) {
-                    descGlobal  = p.getDescricao()  != null ? p.getDescricao()  : "";
-                    localOrigem = p.getNomeLocal()   != null ? p.getNomeLocal()  : "";
-                    if (localOrigem.isEmpty() && p.getCodLocal() != null)
-                        localOrigem = p.getCodLocal();
-                    break;
+
+            if (global != null) {
+                localOrigem = global.getNomeLocal() != null ? global.getNomeLocal() : "";
+
+                if (localOrigem.isEmpty() && global.getCodLocal() != null) {
+                    localOrigem = global.getCodLocal();
                 }
             }
-            tagsForaDoLocal.put(chave5, new InfoTagFora(codigoMontado, descGlobal, localOrigem));
+
+            tagsForaDoLocal.put(chave5,
+                    new InfoTagFora(codigoMontado, descricaoGlobal, localOrigem));
+
             toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 150);
-            mainHandler.post(() -> { adapter.notifyDataSetChanged(); atualizarContador(); });
+
+            pendenteScrollForaLocal = true;
+            agendarFlush();
         }
     }
 
     /**
-     * Verifica se o codigoBarra do banco corresponde à chave de 5 dígitos lida.
-     * codigoBarra típico: "04012345" → parte útil = "12345"
+     * Agrupa várias leituras num único redesenho da lista. Sem isso, uma
+     * rajada de tags dispara um filtrar() + notifyDataSetChanged() completo
+     * para cada tag individual.
      */
-    private boolean matchCodigoBarra(String codigoBarra, String chave5) {
-        if (codigoBarra == null || codigoBarra.isEmpty()) return false;
-        // Normaliza o codigoBarra do banco da mesma forma
-        String normCB = normalizarCodigo(codigoBarra);
-        if (normCB.length() < 5) return false;
-        String chave5CB = normCB.substring(0, 5);
-        return chave5.equals(chave5CB);
+    private void agendarFlush() {
+        if (flushAgendado) {
+            return;
+        }
+
+        flushAgendado = true;
+
+        mainHandler.postDelayed(() -> {
+            flushAgendado = false;
+
+            filtrar(etBusca.getText().toString());
+
+            if (filtroAtual != FILTRO_FORA_DO_LOCAL && pendenteScrollIdentificado) {
+                recyclerLocal.scrollToPosition(0);
+            } else if (filtroAtual == FILTRO_FORA_DO_LOCAL && pendenteScrollForaLocal) {
+                recyclerLocal.scrollToPosition(0);
+            }
+
+            pendenteScrollIdentificado = false;
+            pendenteScrollForaLocal = false;
+        }, JANELA_FLUSH);
     }
 
-    // ── Estado helpers ────────────────────────────────────────
-    private int getEstado(Patrimonio p) {
-        Integer e = estadoPatrimonios.get(p.getCodigoBarra());
-        return e != null ? e : ESTADO_PENDENTE;
+    private int getEstado(Patrimonio patrimonio) {
+        Integer estado = estadoPatrimonios.get(patrimonio.getCodigoBarra());
+        return estado != null ? estado : ESTADO_PENDENTE;
     }
 
-    // ── Contador ──────────────────────────────────────────────
     private void atualizarContador() {
-        int total = todosPatrimonios.size(), encontrados = 0;
-        for (Patrimonio p : todosPatrimonios)
-            if (getEstado(p) == ESTADO_ENCONTRADO) encontrados++;
-        int foraCount = tagsForaDoLocal.size();
-        String txt = "Lidos: " + encontrados + " / " + total;
-        if (foraCount > 0) txt += "  ⚠ " + foraCount + " fora";
-        tvContador.setText(txt);
-        tvContador.setTextColor(encontrados == total && total > 0
-                ? Color.parseColor("#2E7D32") : Color.parseColor("#333333"));
+        int identificados = 0;
+        int naoIdentificados = 0;
+
+        for (Patrimonio patrimonio : todosPatrimonios) {
+            if (getEstado(patrimonio) == ESTADO_ENCONTRADO) {
+                identificados++;
+            } else {
+                naoIdentificados++;
+            }
+        }
+
+        int foraDoLocal = tagsForaDoLocal.size();
+        int total = todosPatrimonios.size();
+
+        txtQtdTodos.setText(String.valueOf(total));
+        txtQtdIdentificados.setText(String.valueOf(identificados));
+        txtQtdForaDoLocal.setText(String.valueOf(foraDoLocal));
+        txtQtdNaoIdentificados.setText(String.valueOf(naoIdentificados));
     }
 
-    // ── Distância ─────────────────────────────────────────────
     private void abrirSelecionadorDeDistancia() {
         String[] opcoes = {"Curta (10 dBm)", "Média (20 dBm)", "Longa (30 dBm)"};
+
         new android.app.AlertDialog.Builder(this)
                 .setTitle("Ajustar Distância")
                 .setItems(opcoes, (dialog, which) -> {
                     int power = which == 0 ? 10 : which == 1 ? 20 : 30;
                     executor.execute(() -> {
                         try {
-                            if (mReader != null && mReader.setPower(power))
-                                mainHandler.post(() -> Toast.makeText(this,
-                                        "Potência: " + power + " dBm", Toast.LENGTH_SHORT).show());
-                        } catch (Exception e) { Log.e(TAG, "Potência", e); }
+                            if (mReader != null && mReader.setPower(power)) {
+                                mainHandler.post(() ->
+                                        Toast.makeText(this,
+                                                "Potência: " + power + " dBm",
+                                                Toast.LENGTH_SHORT).show());
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Erro ao ajustar potência", e);
+                        }
                     });
-                }).show();
+                })
+                .show();
     }
 
-    // ── Resumo ────────────────────────────────────────────────
     private void abrirResumo() {
-        StringBuilder sb = new StringBuilder();
-        int enc = 0;
-        for (Patrimonio p : todosPatrimonios) {
-            if (getEstado(p) == ESTADO_ENCONTRADO) {
-                sb.append("✓ ").append(p.getCodigoBarra()).append(" — ").append(p.getDescricao()).append("\n");
-                enc++;
-            }
-        }
-        for (Patrimonio p : todosPatrimonios) {
-            if (getEstado(p) == ESTADO_NAO_ENCONTRADO)
-                sb.append("✗ ").append(p.getCodigoBarra()).append(" — ").append(p.getDescricao()).append("\n");
-        }
-        if (!tagsForaDoLocal.isEmpty()) {
-            sb.append("\n⚠ Fora do local:\n");
-            for (InfoTagFora info : tagsForaDoLocal.values()) {
-                sb.append("  ").append(info.codigoExibido);
-                if (!info.descricao.isEmpty())
-                    sb.append(" — ").append(info.descricao);
-                if (!info.localOrigem.isEmpty())
-                    sb.append(" (").append(info.localOrigem).append(")");
-                sb.append("\n");
-            }
-        }
-        if (enc == 0 && tagsForaDoLocal.isEmpty()) {
+        if (ordemLeitura.isEmpty() && tagsForaDoLocal.isEmpty()) {
             Toast.makeText(this, "Nenhum item lido ainda!", Toast.LENGTH_SHORT).show();
             return;
         }
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("Resumo — " + enc + " encontrado(s)")
-                .setMessage(sb.toString())
-                .setPositiveButton("OK", null).show();
-    }
 
-    // ── Gatilho físico ────────────────────────────────────────
+        String nomeLocalAtual = localBanco != null
+                ? localBanco.getLocalNome()
+                : codigoLocal;
+
+        ArrayList<String> tagsLidas = new ArrayList<>();
+        ArrayList<String> descricoesLidas = new ArrayList<>();
+
+        // TRUE = pertence ao local
+        // FALSE = está fora do local
+        ArrayList<Boolean> itensPertencemAoLocal = new ArrayList<>();
+
+        // =========================================================
+        // ITENS IDENTIFICADOS / PERTENCENTES AO LOCAL
+        // =========================================================
+        for (String codigoBarra : ordemLeitura) {
+
+            for (Patrimonio p : todosPatrimonios) {
+
+                if (codigoBarra.equals(p.getCodigoBarra())) {
+
+                    tagsLidas.add(codigoBarra);
+
+                    String descricao = p.getDescricao() != null
+                            && !p.getDescricao().trim().isEmpty()
+                            ? p.getDescricao()
+                            : "DESCONHECIDO";
+
+                    descricoesLidas.add(
+                            descricao + "\n" +
+                                    "Local: " + nomeLocalAtual
+                    );
+
+                    // Este item pertence ao local atual
+                    itensPertencemAoLocal.add(true);
+
+                    break;
+                }
+            }
+        }
+
+        // =========================================================
+        // TAGS FORA DO LOCAL
+        // =========================================================
+        for (InfoTagFora info : tagsForaDoLocal.values()) {
+
+            tagsLidas.add(info.codigoExibido);
+
+            String descricao = info.descricao != null
+                    && !info.descricao.trim().isEmpty()
+                    ? info.descricao
+                    : "DESCONHECIDO";
+
+            String local = info.localOrigem != null
+                    && !info.localOrigem.trim().isEmpty()
+                    ? info.localOrigem
+                    : "Local desconhecido";
+
+            descricoesLidas.add(
+                    descricao + "\n" +
+                            "Local: " + local
+            );
+
+            // Este item NÃO pertence ao local atual
+            itensPertencemAoLocal.add(false);
+        }
+
+        // =========================================================
+        // ABRIR RESUMO
+        // =========================================================
+        Intent intent = new Intent(this, ResumoActivity.class);
+
+        intent.putStringArrayListExtra(
+                "tags",
+                tagsLidas
+        );
+
+        intent.putStringArrayListExtra(
+                "descricoes",
+                descricoesLidas
+        );
+
+        // Envia a informação de pertencimento para o ResumoActivity
+        intent.putExtra(
+                "itensPertencemAoLocal",
+                itensPertencemAoLocal
+        );
+
+        intent.putExtra(
+                "codigoFilial",
+                codigoFilial
+        );
+
+        intent.putExtra(
+                "codigoLocal",
+                codigoLocal
+        );
+
+        intent.putExtra(
+                "chapaFuncionario",
+                chapaFuncionario
+        );
+
+        intent.putExtra(
+                "nomeUsuario",
+                userBanco != null
+                        ? userBanco.getNome()
+                        : ""
+        );
+
+        intent.putExtra(
+                "nomeLocal",
+                nomeLocalAtual
+        );
+
+        // =========================================================
+        // QUANTIDADES
+        // =========================================================
+
+        // Total geral
+        intent.putExtra(
+                "totalItensLidos",
+                tagsLidas.size()
+        );
+
+        // Total de itens que pertencem ao local
+        intent.putExtra(
+                "totalIdentificados",
+                ordemLeitura.size()
+        );
+
+        // Total de itens fora do local
+        intent.putExtra(
+                "totalForaDoLocal",
+                tagsForaDoLocal.size()
+        );
+
+        startActivity(intent);
+    }
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getKeyCode() == 293 && event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -520,169 +893,280 @@ public class InventarioLocalActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
         pararLeituraRFID();
         pararLeitura2D();
+
+        mainHandler.removeCallbacksAndMessages(null);
+
         executor.shutdown();
         barcodeExecutor.shutdown();
-        try { if (barcodeDecoder != null) barcodeDecoder.close(); } catch (Exception ignored) {}
+
+        try {
+            if (barcodeDecoder != null) barcodeDecoder.close();
+        } catch (Exception ignored) {}
+
         if (toneGen != null) toneGen.release();
     }
 
-    // ── Adapter: lidos no topo (ordem de leitura), pendentes depois, fora ao final ──
-    private class PatrimonioLocalAdapter extends ArrayAdapter<Patrimonio> {
+    // ─────────────────────────────────────────────────────────────────────────
+    // Adapter
+    // ─────────────────────────────────────────────────────────────────────────
 
-        PatrimonioLocalAdapter() { super(InventarioLocalActivity.this, 0, listaFiltrada); }
+    private class PatrimonioLocalAdapter
+            extends RecyclerView.Adapter<PatrimonioLocalAdapter.VH> {
 
-        /** Monta a lista ordenada: lidos (por ordemLeitura) + pendentes + fora do local */
-        private List<Object> buildOrdered() {
-            List<Object> result = new ArrayList<>();
+        private final List<Object> itensExibidos = new ArrayList<>();
 
-            // 1. Lidos na ordem de leitura (mais recente primeiro)
-            for (String cb : ordemLeitura) {
-                for (Patrimonio p : listaFiltrada) {
-                    if (p.getCodigoBarra().equals(cb)) { result.add(p); break; }
+        class VH extends RecyclerView.ViewHolder {
+            TextView txtCodigo;
+            TextView txtDescricao;
+            TextView txtLocal;
+            ImageView imgStatus;
+
+            VH(View itemView) {
+                super(itemView);
+                txtCodigo = itemView.findViewById(R.id.txtItemCodigo);
+                txtDescricao = itemView.findViewById(R.id.txtItemDescricao);
+                txtLocal = itemView.findViewById(R.id.txtItemLocal);
+                imgStatus = itemView.findViewById(R.id.imgPatrimonio);
+            }
+        }
+
+        public void atualizarLista() {
+            itensExibidos.clear();
+
+            if (filtroAtual == FILTRO_FORA_DO_LOCAL) {
+                List<String> tagsFora = new ArrayList<>(tagsForaDoLocal.keySet());
+                Collections.reverse(tagsFora);
+                for (String chave5 : tagsFora) {
+                    InfoTagFora info = tagsForaDoLocal.get(chave5);
+                    if (info != null && passaNaBuscaTagFora(info)) {
+                        itensExibidos.add(chave5);
+                    }
+                }
+                notifyDataSetChanged();
+                return;
+            }
+
+            for (String codigoBarra : ordemLeitura) {
+                for (Patrimonio patrimonio : listaFiltrada) {
+                    if (codigoBarra.equals(patrimonio.getCodigoBarra())) {
+                        itensExibidos.add(patrimonio);
+                        break;
+                    }
                 }
             }
 
-            // 2. Não encontrados (vermelho) — após os lidos
-            for (Patrimonio p : listaFiltrada) {
-                if (getEstado(p) == ESTADO_NAO_ENCONTRADO && !ordemLeitura.contains(p.getCodigoBarra()))
-                    result.add(p);
+            for (Patrimonio patrimonio : listaFiltrada) {
+                if (!itensExibidos.contains(patrimonio)) {
+                    itensExibidos.add(patrimonio);
+                }
             }
 
-            // 3. Pendentes (cinza)
-            for (Patrimonio p : listaFiltrada) {
-                if (getEstado(p) == ESTADO_PENDENTE) result.add(p);
-            }
-
-            // 4. Tags fora do local (amarelas/verdes) — mais recentes primeiro
-            List<String> chavesForaRev = new ArrayList<>(tagsForaDoLocal.keySet());
-            java.util.Collections.reverse(chavesForaRev);
-            for (String chave5 : chavesForaRev) result.add(chave5);
-
-            return result;
+            notifyDataSetChanged();
         }
 
-        @Override
-        public int getCount() { return buildOrdered().size(); }
+        private boolean passaNaBuscaTagFora(InfoTagFora info) {
+            if (textoBuscaAtual.isEmpty()) return true;
+            return info.codigoExibido.toLowerCase().contains(textoBuscaAtual)
+                    || (!info.descricao.isEmpty()
+                    && info.descricao.toLowerCase().contains(textoBuscaAtual))
+                    || (!info.localOrigem.isEmpty()
+                    && info.localOrigem.toLowerCase().contains(textoBuscaAtual));
+        }
 
         @NonNull
         @Override
-        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-            if (convertView == null)
-                convertView = LayoutInflater.from(getContext())
-                        .inflate(R.layout.item_patrimonio, parent, false);
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_patrimonio, parent, false);
+            return new VH(view);
+        }
 
-            TextView  txtCodigo    = convertView.findViewById(R.id.txtItemCodigo);
-            TextView  txtDescricao = convertView.findViewById(R.id.txtItemDescricao);
-            ImageView imgStatus    = convertView.findViewById(R.id.imgPatrimonio);
-
-            Object item = buildOrdered().get(position);
-
+        @Override
+        public void onBindViewHolder(@NonNull VH holder, int position) {
+            Object item = itensExibidos.get(position);
             if (item instanceof Patrimonio) {
-                // ── Patrimônio do local ────────────────────────
-                Patrimonio p     = (Patrimonio) item;
-                int        estado = getEstado(p);
+                bindPatrimonio(holder, (Patrimonio) item);
+            } else {
+                bindTagForaDoLocal(holder, (String) item);
+            }
+        }
 
-                txtCodigo.setText(p.getCodigoBarra());
-                txtDescricao.setText(p.getDescricao());
+        private void bindPatrimonio(@NonNull VH holder, Patrimonio patrimonio) {
+            int estado = getEstado(patrimonio);
 
-                switch (estado) {
-                    case ESTADO_ENCONTRADO:
-                        convertView.setBackgroundColor(Color.parseColor("#E8F5E9"));
-                        txtCodigo.setTextColor(Color.parseColor("#1B5E20"));
-                        txtDescricao.setTextColor(Color.parseColor("#2E7D32"));
-                        imgStatus.setColorFilter(Color.parseColor("#2E7D32"));
-                        convertView.setOnClickListener(v -> {
-                            estadoPatrimonios.put(p.getCodigoBarra(), ESTADO_NAO_ENCONTRADO);
-                            // Remove da ordemLeitura para não ficar no topo como "não encontrado"
-                            ordemLeitura.remove(p.getCodigoBarra());
-                            adapter.notifyDataSetChanged();
-                            atualizarContador();
-                            Toast.makeText(InventarioLocalActivity.this,
-                                    "Marcado como não encontrado", Toast.LENGTH_SHORT).show();
-                        });
-                        break;
+            holder.txtCodigo.setText(patrimonio.getCodigoBarra());
+            holder.txtDescricao.setText(patrimonio.getDescricao());
+            holder.txtLocal.setVisibility(View.GONE);
 
-                    case ESTADO_NAO_ENCONTRADO:
-                        convertView.setBackgroundColor(Color.parseColor("#FFEBEE"));
-                        txtCodigo.setTextColor(Color.parseColor("#B71C1C"));
-                        txtDescricao.setTextColor(Color.parseColor("#C62828"));
-                        imgStatus.setColorFilter(Color.parseColor("#C62828"));
-                        convertView.setOnClickListener(v -> {
-                            estadoPatrimonios.put(p.getCodigoBarra(), ESTADO_ENCONTRADO);
-                            ordemLeitura.remove(p.getCodigoBarra());
-                            ordemLeitura.add(0, p.getCodigoBarra());
-                            adapter.notifyDataSetChanged();
-                            atualizarContador();
-                            Toast.makeText(InventarioLocalActivity.this,
-                                    "Marcado como encontrado", Toast.LENGTH_SHORT).show();
-                        });
-                        break;
+            if (estado == ESTADO_ENCONTRADO) {
+                holder.itemView.setBackgroundColor(Color.parseColor("#E8F5E9"));
+                holder.txtCodigo.setTextColor(Color.parseColor("#1B5E20"));
+                holder.txtDescricao.setTextColor(Color.parseColor("#2E7D32"));
+                holder.imgStatus.clearColorFilter();
+                holder.imgStatus.setImageResource(R.drawable.ic_ativo_pat);
 
-                    default: // PENDENTE — cinza, sem clique
-                        convertView.setBackgroundColor(Color.parseColor("#F5F5F5"));
-                        txtCodigo.setTextColor(Color.parseColor("#9E9E9E"));
-                        txtDescricao.setTextColor(Color.parseColor("#BDBDBD"));
-                        imgStatus.setColorFilter(Color.parseColor("#BDBDBD"));
-                        convertView.setOnClickListener(null);
-                        break;
-                }
+                holder.itemView.setOnClickListener(v -> {
+
+                    new android.app.AlertDialog.Builder(InventarioLocalActivity.this)
+                            .setTitle("Alterar status")
+                            .setMessage(
+                                    "Deseja marcar este patrimônio como não identificado?\n\n" +
+                                            patrimonio.getCodigoBarra() +
+                                            "\n" +
+                                            (patrimonio.getDescricao() != null
+                                                    ? patrimonio.getDescricao()
+                                                    : "")
+                            )
+                            .setPositiveButton("Sim", (dialog, which) -> {
+
+                                estadoPatrimonios.put(
+                                        patrimonio.getCodigoBarra(),
+                                        ESTADO_NAO_ENCONTRADO
+                                );
+
+                                ordemLeitura.remove(patrimonio.getCodigoBarra());
+
+                                filtrar(etBusca.getText().toString());
+                                atualizarContador();
+
+                                Toast.makeText(
+                                        InventarioLocalActivity.this,
+                                        "Marcado como não identificado",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            })
+                            .setNegativeButton("Cancelar", null)
+                            .show();
+                });
+
+            } else if (estado == ESTADO_NAO_ENCONTRADO) {
+                holder.itemView.setBackgroundColor(Color.parseColor("#FFEBEE"));
+                holder.txtCodigo.setTextColor(Color.parseColor("#B71C1C"));
+                holder.txtDescricao.setTextColor(Color.parseColor("#C62828"));
+                holder.imgStatus.clearColorFilter();
+                holder.imgStatus.setImageResource(R.drawable.ic_desconhecido);
+
+                holder.itemView.setOnClickListener(v -> {
+
+                    new android.app.AlertDialog.Builder(InventarioLocalActivity.this)
+                            .setTitle("Alterar status")
+                            .setMessage(
+                                    "Deseja marcar este patrimônio como identificado?\n\n" +
+                                            patrimonio.getCodigoBarra() +
+                                            "\n" +
+                                            (patrimonio.getDescricao() != null
+                                                    ? patrimonio.getDescricao()
+                                                    : "")
+                            )
+                            .setPositiveButton("Sim", (dialog, which) -> {
+
+                                estadoPatrimonios.put(
+                                        patrimonio.getCodigoBarra(),
+                                        ESTADO_ENCONTRADO
+                                );
+
+                                ordemLeitura.remove(patrimonio.getCodigoBarra());
+                                ordemLeitura.add(0, patrimonio.getCodigoBarra());
+
+                                filtrar(etBusca.getText().toString());
+                                atualizarContador();
+                                recyclerLocal.scrollToPosition(0);
+
+                                Toast.makeText(
+                                        InventarioLocalActivity.this,
+                                        "Marcado como identificado",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            })
+                            .setNegativeButton("Cancelar", null)
+                            .show();
+                });
 
             } else {
-                // ── Tag fora do local (String = chave5) ───────
-                String chave5        = (String) item;
-                InfoTagFora info     = tagsForaDoLocal.get(chave5);
-                boolean aceita       = tagForaAceitas.contains(chave5);
+                holder.itemView.setBackgroundColor(Color.parseColor("#F5F5F5"));
+                holder.txtCodigo.setTextColor(Color.parseColor("#9E9E9E"));
+                holder.txtDescricao.setTextColor(Color.parseColor("#757575"));
+                holder.imgStatus.clearColorFilter();
+                holder.imgStatus.setImageResource(R.drawable.ic_loading);
 
-                txtCodigo.setText(info.codigoExibido);
+                holder.itemView.setOnClickListener(v -> {
+                    estadoPatrimonios.put(patrimonio.getCodigoBarra(), ESTADO_ENCONTRADO);
+                    ordemLeitura.remove(patrimonio.getCodigoBarra());
+                    ordemLeitura.add(0, patrimonio.getCodigoBarra());
+                    filtrar(etBusca.getText().toString());
+                    atualizarContador();
+                    recyclerLocal.scrollToPosition(0);
+                    Toast.makeText(InventarioLocalActivity.this,
+                            "Marcado como identificado", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }
 
-                if (aceita) {
-                    // Descrição + local de origem, marcada como aceita
-                    String labelAceita = "✓ Entrada aceita";
-                    if (!info.descricao.isEmpty())
-                        labelAceita += " — " + info.descricao;
-                    if (!info.localOrigem.isEmpty())
-                        labelAceita += " (orig: " + info.localOrigem + ")";
-                    txtDescricao.setText(labelAceita);
-                    convertView.setBackgroundColor(Color.parseColor("#E8F5E9"));
-                    txtCodigo.setTextColor(Color.parseColor("#1B5E20"));
-                    txtDescricao.setTextColor(Color.parseColor("#2E7D32"));
-                    imgStatus.setColorFilter(Color.parseColor("#2E7D32"));
-                    convertView.setOnClickListener(v -> {
-                        tagForaAceitas.remove(chave5);
-                        adapter.notifyDataSetChanged();
-                        Toast.makeText(InventarioLocalActivity.this,
-                                "Entrada removida", Toast.LENGTH_SHORT).show();
-                    });
-                } else {
-                    // Mostra descrição e local de origem se encontrado no banco
-                    String labelFora;
-                    if (!info.descricao.isEmpty()) {
-                        labelFora = "⚠ " + info.descricao;
-                        if (!info.localOrigem.isEmpty())
-                            labelFora += " | Local: " + info.localOrigem;
-                        labelFora += " — toque para aceitar";
-                    } else {
-                        labelFora = "⚠ Tag desconhecida — toque para aceitar entrada";
-                    }
-                    txtDescricao.setText(labelFora);
-                    convertView.setBackgroundColor(Color.parseColor("#FFFDE7"));
-                    txtCodigo.setTextColor(Color.parseColor("#F57F17"));
-                    txtDescricao.setTextColor(Color.parseColor("#E65100"));
-                    imgStatus.setColorFilter(Color.parseColor("#F57F17"));
-                    convertView.setOnClickListener(v -> {
-                        tagForaAceitas.add(chave5);
-                        dbHelper.salvarHistoricoComTipo(codigoFilial, codigoLocal,
-                                chapaFuncionario, info.codigoExibido, "LOCAL_ENTRADA");
-                        adapter.notifyDataSetChanged();
-                        Toast.makeText(InventarioLocalActivity.this,
-                                "Tag aceita como entrada", Toast.LENGTH_SHORT).show();
-                    });
-                }
+        private void bindTagForaDoLocal(@NonNull VH holder, String chave5) {
+            InfoTagFora info = tagsForaDoLocal.get(chave5);
+            if (info == null) return;
+
+            boolean aceita = tagForaAceitas.contains(chave5);
+            holder.txtCodigo.setText(info.codigoExibido);
+
+            holder.txtDescricao.setText(
+                    !info.descricao.isEmpty() ? info.descricao : "Tag desconhecida");
+
+            String textoLocal;
+
+            if (aceita) {
+                textoLocal = !info.localOrigem.isEmpty()
+                        ? "\u2713 Entrada aceita — origem: " + info.localOrigem
+                        : "\u2713 Entrada aceita";
+            } else {
+                textoLocal = !info.localOrigem.isEmpty()
+                        ? info.localOrigem
+                        : "Local de origem desconhecido — toque para aceitar";
             }
 
-            return convertView;
+            holder.txtLocal.setText(textoLocal);
+            holder.txtLocal.setVisibility(View.VISIBLE);
+
+            if (aceita) {
+                holder.itemView.setBackgroundColor(Color.parseColor("#E8F5E9"));
+                holder.txtCodigo.setTextColor(Color.parseColor("#1B5E20"));
+                holder.txtDescricao.setTextColor(Color.parseColor("#2E7D32"));
+                holder.txtLocal.setTextColor(Color.parseColor("#2E7D32"));
+                holder.imgStatus.clearColorFilter();
+                holder.imgStatus.setImageResource(R.drawable.ic_ativo_pat);
+
+                holder.itemView.setOnClickListener(v -> {
+                    tagForaAceitas.remove(chave5);
+                    filtrar(etBusca.getText().toString());
+                    Toast.makeText(InventarioLocalActivity.this,
+                            "Entrada removida", Toast.LENGTH_SHORT).show();
+                });
+
+            } else {
+                holder.itemView.setBackgroundColor(Color.parseColor("#FFFDE7"));
+                holder.txtCodigo.setTextColor(Color.parseColor("#F57F17"));
+                holder.txtDescricao.setTextColor(Color.parseColor("#E65100"));
+                holder.txtLocal.setTextColor(Color.parseColor("#E65100"));
+                holder.imgStatus.clearColorFilter();
+                holder.imgStatus.setImageResource(R.drawable.ic_desconhecido);
+
+                holder.itemView.setOnClickListener(v -> {
+                    tagForaAceitas.add(chave5);
+                    dbHelper.salvarHistoricoComTipo(codigoFilial, codigoLocal,
+                            chapaFuncionario, info.codigoExibido, "LOCAL_ENTRADA");
+                    filtrar(etBusca.getText().toString());
+                    Toast.makeText(InventarioLocalActivity.this,
+                            "Tag aceita como entrada", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return itensExibidos.size();
         }
     }
 }

@@ -141,27 +141,23 @@ public class HistoricoActivity extends AppCompatActivity {
                 case "LOCAL":
                     txtTipo.setText("Por Local");
                     txtTipo.setBackgroundResource(R.drawable.bg_badge_verde);
-                    imgTipo.setColorFilter(Color.parseColor("#2E7D32"));
                     break;
                 case "CATEGORIA":
                     txtTipo.setText("Por Categoria");
                     txtTipo.setBackgroundResource(R.drawable.bg_badge_azul);
-                    imgTipo.setColorFilter(Color.parseColor("#005eb8"));
                     break;
                 case "CODBARRA":
                 case "CODBARRAS":
                     txtTipo.setText("Cód. Barras");
                     txtTipo.setBackgroundResource(R.drawable.bg_badge_laranja);
-                    imgTipo.setColorFilter(Color.parseColor("#E65100"));
                     break;
-                default: // LIVRE, RFID ou vazio
+                default:
                     txtTipo.setText("Leitura Livre");
                     txtTipo.setBackgroundResource(R.drawable.bg_badge_cinza);
-                    imgTipo.setColorFilter(Color.parseColor("#546E7A"));
                     break;
             }
-            // Garante texto branco em qualquer badge
             txtTipo.setTextColor(Color.WHITE);
+            imgTipo.clearColorFilter(); // ← ícone natural, sem tinta por cima
 
             return convertView;
         }

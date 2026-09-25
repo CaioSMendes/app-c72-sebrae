@@ -57,8 +57,12 @@ public class ResumoAdapter extends BaseAdapter {
         h.descricao.setText(item.getDescricao());
         h.qtd.setText(item.getQuantidade() + "x");
 
-        int[] cores = { 0xff2196F3, 0xff4CAF50, 0xffFF9800,
-                0xff9C27B0, 0xff009688, 0xffF44336 };
+        int[] cores = {
+                0xff2196F3, 0xff4CAF50, 0xffFF9800, 0xff9C27B0, 0xff009688,
+                0xffF44336, 0xff3F51B5, 0xff8BC34A, 0xffCDDC39, 0xffFFC107,
+                0xff795548, 0xff607D8B, 0xffE91E63, 0xff00BCD4, 0xff673AB7,
+                0xff9E9E9E, 0xffFF5722, 0xff2E7D32, 0xff1565C0, 0xffC2185B
+        };
 
         h.faixa.setBackgroundColor(cores[pos % cores.length]);
 

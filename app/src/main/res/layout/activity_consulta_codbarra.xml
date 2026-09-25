@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="#FAFAFA">
 
-    <!-- 🔵 BARRA DE TÍTULO -->
+    <!-- HEADER — fixo no topo -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
@@ -36,143 +36,172 @@
             android:layout_toEndOf="@id/logoSEBRAE" />
     </RelativeLayout>
 
-    <!-- 🔵 INFORMAÇÕES DO USUÁRIO -->
-    <TextView
-        android:id="@+id/txtInfoTopoCodBarra"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Informações"
-        android:textStyle="bold"
-        android:textColor="#005eb8"
-        android:textSize="16sp"
-        android:padding="12dp"
-        android:gravity="center" />
-
-    <TextView
-        android:id="@+id/txtInfoUserCodBarra"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Usuário"
-        android:textStyle="bold"
-        android:textColor="#005eb8"
-        android:textSize="16sp"
-        android:padding="12dp"
-        android:gravity="center" />
-
-    <!-- 🔵 BOTÕES SUPERIORES (LER / LIMPAR) -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="12dp"
-        android:layout_marginTop="8dp">
-
-        <!-- ✅ LER CÓDIGOS -->
-        <LinearLayout
-            android:id="@+id/btnLerCodBarra"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:background="@drawable/btn_rounded"
-            android:backgroundTint="#005eb8"
-            android:paddingVertical="12dp"
-            android:layout_marginEnd="4dp"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ler_rfid"
-                android:layout_marginEnd="6dp" />
-
-            <TextView
-                android:id="@+id/txtTituloBotaoCodBarra"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Ler Código"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- ✅ LIMPAR -->
-        <LinearLayout
-            android:id="@+id/btnLimparCodBarra"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:background="@drawable/btn_rounded"
-            android:backgroundTint="#4CAF50"
-            android:paddingVertical="12dp"
-            android:layout_marginStart="4dp"
-            android:clickable="true"
-            android:focusable="true">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_clean"
-                android:layout_marginEnd="6dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Limpar"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-    </LinearLayout>
-
-    <!-- 🔵 CONTADOR -->
-    <TextView
-        android:id="@+id/tvCountCodBarra"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Códigos: 0"
-        android:textSize="16sp"
-        android:textColor="#333333"
-        android:padding="8dp"
-        android:layout_marginBottom="8dp" />
-
-    <!-- 🔵 LISTA DE CÓDIGOS LIDOS -->
-    <ListView
-        android:id="@+id/listViewCodBarra"
+    <!-- ÁREA SCROLLÁVEL -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@android:color/darker_gray"
-        android:dividerHeight="1dp"
-        android:padding="8dp"
-        android:background="@android:color/white" />
+        android:fillViewport="true">
 
-    <!-- 🔵 BOTÕES RESUMO & CONCLUIR -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- INFORMAÇÕES DO USUÁRIO -->
+            <TextView
+                android:id="@+id/txtInfoTopoCodBarra"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Informações"
+                android:textStyle="bold"
+                android:textColor="#005eb8"
+                android:textSize="16sp"
+                android:padding="12dp"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/txtInfoUserCodBarra"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Usuário"
+                android:textStyle="bold"
+                android:textColor="#005eb8"
+                android:textSize="16sp"
+                android:padding="12dp"
+                android:gravity="center" />
+
+            <!-- BOTÕES SUPERIORES -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="12dp"
+                android:layout_marginTop="8dp"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp">
+
+                <LinearLayout
+                    android:id="@+id/btnLerCodBarra"
+                    android:layout_width="0dp"
+                    android:layout_height="72dp"
+                    android:orientation="vertical"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:background="@drawable/btn_rounded"
+                    android:backgroundTint="#005eb8"
+                    android:layout_marginEnd="4dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ler_rfid"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:id="@+id/txtTituloBotaoCodBarra"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Ler Código"
+                        android:textColor="@android:color/white"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="2"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="2dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/btnLimparCodBarra"
+                    android:layout_width="0dp"
+                    android:layout_height="72dp"
+                    android:orientation="vertical"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:background="@drawable/btn_rounded"
+                    android:backgroundTint="#F57F17"
+                    android:layout_marginStart="4dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_clean"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Limpar"
+                        android:textColor="@android:color/white"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:maxLines="2"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="2dp" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- CONTADOR -->
+            <TextView
+                android:id="@+id/tvCountCodBarra"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Códigos: 0"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#333333"
+                android:paddingStart="8dp"
+                android:layout_marginBottom="6dp" />
+
+            <!-- LISTA — RecyclerView sem scroll próprio -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/listViewCodBarra"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/white"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never" />
+
+            <!-- Espaço pra barra inferior não cobrir o último item -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="80dp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- BOTÕES INFERIORES — fixos no rodapé -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="12dp"
-        android:gravity="center">
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:background="#FAFAFA">
 
-        <!-- ✅ RESUMO -->
         <LinearLayout
             android:id="@+id/btnResumoCodBarra"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="64dp"
             android:layout_weight="1"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center"
             android:background="@drawable/btn_rounded"
             android:backgroundTint="#005eb8"
-            android:paddingVertical="12dp"
-            android:layout_marginEnd="6dp"
+            android:layout_marginEnd="3dp"
             android:clickable="true"
             android:focusable="true">
 
@@ -180,29 +209,28 @@
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:src="@drawable/ic_resumo"
-                android:layout_marginEnd="6dp" />
+                android:layout_marginBottom="3dp" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Resumo"
                 android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center" />
         </LinearLayout>
 
-        <!-- ✅ CONCLUIR -->
         <LinearLayout
             android:id="@+id/btnConcluirCodBarra"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="64dp"
             android:layout_weight="1"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center"
             android:background="@drawable/btn_rounded"
             android:backgroundTint="#4CAF50"
-            android:paddingVertical="12dp"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="3dp"
             android:clickable="true"
             android:focusable="true">
 
@@ -210,15 +238,16 @@
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:src="@drawable/ic_concluir"
-                android:layout_marginEnd="6dp" />
+                android:layout_marginBottom="3dp" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Concluir"
                 android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:gravity="center" />
         </LinearLayout>
 
     </LinearLayout>

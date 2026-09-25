@@ -640,6 +640,22 @@ public class DBHelper extends SQLiteOpenHelper {
         return p;
     }
 
+    /**
+     * Busca um patrimônio pelo código de barra completo (com o prefixo "040").
+     * Usado onde é preciso mostrar descrição + local de origem de uma tag,
+     * sem trazer o banco inteiro (ex: InventarioLivreActivity).
+     */
+    public Patrimonio buscarPatrimonioPorCodigoBarra(String codigoBarra) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.query(TABLE_PATRIMONIO, null,
+                COL_CODIGO_BARRA + "=?", new String[]{ codigoBarra }, null, null, null);
+        Patrimonio p = null;
+        if (c.moveToFirst()) p = patrimonioFromCursor(c);
+        c.close();
+        db.close();
+        return p;
+    }
+
     private Patrimonio patrimonioFromCursor(Cursor c) {
         int idxData  = c.getColumnIndex(COL_DATA_AQUISICAO);
         int idxValor = c.getColumnIndex(COL_VALOR_AQUISICAO);

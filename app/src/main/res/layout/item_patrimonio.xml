@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="72dp"
+    android:layout_height="wrap_content"
+    android:minHeight="72dp"
     android:orientation="horizontal"
     android:padding="12dp"
     android:gravity="center_vertical"
@@ -43,5 +44,18 @@
             android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:maxLines="1"/>
+
+        <!-- Linha extra: local de origem (tags divergentes) / status de aceite.
+             Fica GONE por padrão — só aparece quando o item tem essa informação. -->
+        <TextView
+            android:id="@+id/txtItemLocal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Local"
+            android:textSize="12sp"
+            android:textColor="#999999"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1" />
     </LinearLayout>
 </LinearLayout>
